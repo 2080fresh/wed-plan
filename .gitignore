@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.analysis/
+output/
+*.xlsx
+*.xls
+*.csv
+*.local
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
