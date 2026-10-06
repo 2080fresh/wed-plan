@@ -9,6 +9,7 @@ import {
 import { Cloud, Copy, Download, LogOut, RefreshCw, ShieldCheck, Upload, Users } from 'lucide-react';
 import {
   createCloud,
+  deploymentCloudConfig,
   clearCloudConfig,
   readCloudConfig,
   saveCloudConfig,
@@ -114,8 +115,8 @@ function readRememberedSpace(url: string, userId: string): string {
 
 export function SharedSettings({ plan, onReplace, notify, confirm }: Props) {
   const [config, setConfig] = useState(readCloudConfig);
-  const [url, setUrl] = useState(config?.url || '');
-  const [key, setKey] = useState(config?.key || '');
+  const [url, setUrl] = useState(config?.url || deploymentCloudConfig?.url || '');
+  const [key, setKey] = useState(config?.key || deploymentCloudConfig?.key || '');
   const [cloud, setCloud] = useState<CloudStore | null>(() =>
     config ? getSharedCloud(config) : null,
   );
@@ -386,7 +387,7 @@ export function SharedSettings({ plan, onReplace, notify, confirm }: Props) {
         </p>
       )}
       <details open={!cloud}>
-        <summary>공유 저장소 연결 설정 {cloud ? '· 연결됨' : ''}</summary>
+        <summary>공유 저장소 연결 설정 {cloud ? '· 프로젝트 설정됨' : ''}</summary>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -436,8 +437,11 @@ export function SharedSettings({ plan, onReplace, notify, confirm }: Props) {
             </Field>
           </div>
           <p className="help-text">
-            <ShieldCheck size={14} /> 두 분이 같은 URL과 공개 키를 입력하면 됩니다. 로그인한
-            참여자만 준비 내용을 읽을 수 있어요.
+            <ShieldCheck size={14} />{' '}
+            {deploymentCloudConfig
+              ? '공동 프로젝트가 미리 설정되어 있어요. 각자의 이메일로 로그인해 주세요.'
+              : '두 분이 같은 URL과 공개 키를 입력하면 됩니다.'}{' '}
+            로그인한 참여자만 준비 내용을 읽을 수 있어요.
           </p>
           <div className="form-footer">
             {cloud && (

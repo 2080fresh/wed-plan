@@ -11,6 +11,12 @@ export type Workspace = {
 };
 export type WorkspaceSummary = Omit<Workspace, 'plan'>;
 const CONFIG_KEY = 'owol-cloud-config-v1';
+const DISCONNECTED = 'disabled';
+// GitHub Actions supplies these browser-safe values at build time.
+const deployedUrl = import.meta.env?.VITE_SUPABASE_URL;
+const deployedKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const deploymentCloudConfig: CloudConfig | null =
+  deployedUrl && deployedKey ? { url: deployedUrl, key: deployedKey } : null;
 const COLUMNS = 'id,owner_id,plan,revision,updated_at';
 const MAX_PLAN_BYTES = 5 * 1024 * 1024;
 
@@ -58,10 +64,17 @@ export function validateCloudConfig(input: CloudConfig): CloudConfig {
   return { url: url.origin, key };
 }
 
-export function readCloudConfig(): CloudConfig | null {
+export function readCloudConfig(
+  defaultConfig: CloudConfig | null = deploymentCloudConfig,
+): CloudConfig | null {
   try {
     const value = localStorage.getItem(CONFIG_KEY);
-    return value ? validateCloudConfig(JSON.parse(value)) : null;
+    if (value === DISCONNECTED) return null;
+    return value
+      ? validateCloudConfig(JSON.parse(value))
+      : defaultConfig
+        ? validateCloudConfig(defaultConfig)
+        : null;
   } catch {
     return null;
   }
@@ -72,7 +85,8 @@ export function saveCloudConfig(config: CloudConfig): CloudConfig {
   return normalized;
 }
 export function clearCloudConfig(): void {
-  localStorage.removeItem(CONFIG_KEY);
+  // Explicit disconnection must survive a refresh even with a deployment default.
+  localStorage.setItem(CONFIG_KEY, DISCONNECTED);
 }
 
 function checkError(error: { message: string; code?: string } | null): void {
@@ -90,7 +104,7 @@ function checkError(error: { message: string; code?: string } | null): void {
     throw new Error('이 준비 공간에 접근할 수 없습니다.');
   if (error.message.includes('OWOL_PLAN_INVALID'))
     throw new Error('저장할 계획의 형식이나 크기를 확인해 주세요. (최대 5 MB)');
-  if (error.code === 'PGRST202' || error.code === '42P01')
+  if (error.code === 'PGRST202' || error.code === 'PGRST205' || error.code === '42P01')
     throw new Error(
       '공유 저장소가 아직 준비되지 않았습니다. Supabase에서 setup.sql을 실행해 주세요.',
     );

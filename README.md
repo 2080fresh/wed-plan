@@ -35,13 +35,15 @@ pnpm preview
 
 저장소 Settings → Pages → Source를 **GitHub Actions**로 설정합니다. `main` 브랜치 push 시 테스트와 빌드를 통과한 `dist`만 배포합니다. 상대 경로 asset과 hash navigation으로 `/wed-plan/` 하위 경로 및 새로고침을 지원합니다.
 
-예정 주소: https://2080fresh.github.io/wed-plan/
+배포 주소: https://2080fresh.github.io/wed-plan/
+
+공동 저장의 기본 프로젝트는 GitHub Actions 변수 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`로 설정합니다. 로컬에서는 `.env.example`을 `.env.local`로 복사해 공개 URL과 Publishable key를 입력합니다. 서비스 비밀 키는 사용하지 않습니다.
 
 공식 참고: [GitHub Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [Vite 정적 배포](https://vite.dev/guide/static-deploy.html).
 
 ## 두 사람이 함께 사용하기
 
-**GitHub Pages 배포만으로 기기 간 데이터가 공유되지는 않습니다.** [공동 저장 설정 안내](docs/SHARED-SETUP.md)를 따라 Supabase 프로젝트를 만들고 SQL을 실행한 뒤 두 기기에 연결합니다. 로그인 링크 발송에는 Supabase의 이메일 발송 설정이 필요합니다.
+현재 배포는 두 분의 Supabase 프로젝트를 기본 연결로 사용하며 공동 저장 SQL도 적용되어 있습니다. 각 기기에서 **설정 → 함께 쓰는 준비 공간**으로 이동해 본인의 이메일로 로그인하세요. 로그인 복귀 주소와 이메일 발송 설정은 [공동 저장 설정 안내](docs/SHARED-SETUP.md)를 참고하세요.
 
 기기에 자동 저장되지만 공동 공간은 **명시적인 가져오기 / 저장** 방식입니다. 상대방이 먼저 저장하면 덮어쓰기를 거부합니다. 충돌 시 내 기록을 백업하고 최신 내용을 가져와 수정 사항을 반영하세요. 실시간 자동 병합은 제공하지 않습니다.
 
