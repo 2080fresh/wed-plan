@@ -1,4 +1,4 @@
-import { today, validDate, type Plan } from './model';
+import { dateLabel, today, validDate, type Plan } from './model';
 
 export const CASHFLOW_NOTE_ID = 'owol-cashflow-v1';
 export const CASHFLOW_TAG = '자금계획 데이터';
@@ -12,6 +12,7 @@ export type CashflowType = keyof typeof CASHFLOW_TYPES;
 export type CashflowEntry = {
   id: string;
   date: string;
+  precision?: 'day' | 'month';
   title: string;
   type: CashflowType;
   amount: number;
@@ -73,6 +74,8 @@ export function validateCashflow(input: unknown): CashflowData {
       !e.title.trim() ||
       e.title.length > 100 ||
       !validDate(e.date) ||
+      (e.precision !== undefined && e.precision !== 'day' && e.precision !== 'month') ||
+      (e.precision === 'month' && !e.date.endsWith('-01')) ||
       !Object.hasOwn(CASHFLOW_TYPES, e.type) ||
       !Number.isSafeInteger(e.amount) ||
       e.amount <= 0 ||
@@ -131,6 +134,13 @@ export function withCashflow(plan: Plan, input: CashflowData): Plan {
 }
 export function isInflow(entry: CashflowEntry) {
   return entry.type === 'income' || entry.type === 'loan';
+}
+export function cashflowDateLabel(entry: Pick<CashflowEntry, 'date' | 'precision'>) {
+  if (entry.precision === 'month') {
+    const [year, month] = entry.date.split('-');
+    return `${year}년 ${Number(month)}월`;
+  }
+  return dateLabel(entry.date);
 }
 export function cashflowMonths(
   data: CashflowData,

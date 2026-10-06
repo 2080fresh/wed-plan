@@ -169,7 +169,7 @@ export function createPlan(): Plan {
       groom: '',
       bride: '',
       weddingDate: '',
-      weddingTime: '12:00',
+      weddingTime: '',
       venue: '',
       budget: 30000000,
       invitation:
@@ -218,7 +218,7 @@ export function validatePlan(input: unknown): Plan {
     ) ||
     !dateField(f.weddingDate) ||
     !dateField(f.familyDate) ||
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(f.weddingTime) ||
+    !(f.weddingTime === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(f.weddingTime)) ||
     !amount(f.budget)
   )
     throw new Error('기본 정보가 올바르지 않습니다.');

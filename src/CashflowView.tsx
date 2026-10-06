@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { ArrowDownUp, Check, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
 import { Button, Empty, Field, Modal } from './ui';
-import { dateLabel, money, today, uid, type Plan } from './model';
+import { money, today, uid, type Plan } from './model';
 import {
   CASHFLOW_TYPES,
+  cashflowDateLabel,
   cashflowMonths,
   completedBalance,
   isInflow,
@@ -60,7 +61,8 @@ export function Cashflow({ plan, update, notify }: Props) {
     const f = new FormData(event.currentTarget);
     const entry: CashflowEntry = {
       id: editing.id,
-      date: String(f.get('date')),
+      date: editing.precision === 'month' ? `${String(f.get('date'))}-01` : String(f.get('date')),
+      ...(editing.precision ? { precision: editing.precision } : {}),
       title: String(f.get('title')).trim(),
       type: String(f.get('type')) as CashflowType,
       amount: Number(f.get('amount')),
@@ -282,7 +284,7 @@ export function Cashflow({ plan, update, notify }: Props) {
                 <tbody>
                   {entries.map((e) => (
                     <tr key={e.id}>
-                      <td>{dateLabel(e.date)}</td>
+                      <td>{cashflowDateLabel(e)}</td>
                       <td>
                         <button className="cell-title" onClick={() => setEditing(e)}>
                           {e.title}
@@ -370,12 +372,50 @@ export function Cashflow({ plan, update, notify }: Props) {
                   autoFocus
                 />
               </Field>
-              <Field label="날짜">
+              <Field label="날짜 단위">
+                <select
+                  name="precision"
+                  value={editing.precision ?? 'day'}
+                  onChange={(event) => {
+                    const precision = event.target.value as 'day' | 'month';
+                    setEditing({
+                      ...editing,
+                      precision,
+                      date:
+                        precision === 'month' && editing.date
+                          ? `${editing.date.slice(0, 7)}-01`
+                          : '',
+                    });
+                  }}
+                >
+                  <option value="day">일</option>
+                  <option value="month">월</option>
+                </select>
+              </Field>
+              <Field
+                label={editing.precision === 'month' ? '월' : '날짜'}
+                hint={
+                  editing.precision === 'month'
+                    ? '정확한 날짜가 정해지지 않은 월별 계획입니다.'
+                    : undefined
+                }
+              >
                 <input
                   name="date"
-                  type="date"
-                  min={`${data.openingMonth}-01`}
-                  defaultValue={editing.date}
+                  type={editing.precision === 'month' ? 'month' : 'date'}
+                  min={
+                    editing.precision === 'month' ? data.openingMonth : `${data.openingMonth}-01`
+                  }
+                  value={editing.precision === 'month' ? editing.date.slice(0, 7) : editing.date}
+                  onChange={(event) =>
+                    setEditing({
+                      ...editing,
+                      date:
+                        editing.precision === 'month' && event.target.value
+                          ? `${event.target.value}-01`
+                          : event.target.value,
+                    })
+                  }
                   required
                 />
               </Field>

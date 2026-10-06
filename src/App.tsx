@@ -599,7 +599,7 @@ export default function App() {
                       <>
                         <CalendarDays size={14} />
                         {dateLabel(plan.profile.weddingDate, true)} <span>·</span>{' '}
-                        {plan.profile.weddingTime}{' '}
+                        {plan.profile.weddingTime || '시간 미정'}{' '}
                         <span className="venue-inline">
                           <MapPin size={14} />
                           {plan.profile.venue || '장소를 입력해 주세요'}
@@ -1512,7 +1512,7 @@ export default function App() {
                         groom: String(f.get('groom') || '').trim(),
                         bride: String(f.get('bride') || '').trim(),
                         weddingDate: String(f.get('weddingDate') || ''),
-                        weddingTime: String(f.get('weddingTime') || '12:00'),
+                        weddingTime: String(f.get('weddingTime') || ''),
                         venue: String(f.get('venue') || '').trim(),
                         budget: Number(f.get('budget')),
                       },
@@ -1545,11 +1545,10 @@ export default function App() {
                         defaultValue={plan.profile.weddingDate}
                       />
                     </Field>
-                    <Field label="결혼식 시간">
+                    <Field label="결혼식 시간" hint="아직 정하지 않았다면 비워 두세요.">
                       <input
                         name="weddingTime"
                         type="time"
-                        required
                         defaultValue={plan.profile.weddingTime}
                       />
                     </Field>

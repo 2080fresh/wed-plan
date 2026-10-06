@@ -101,22 +101,47 @@ test('exported workbook roundtrips every plan field, Unicode and formula-like st
     configurable: true,
   });
   try {
-    await exportWorkbook(plan);
-    assert.ok(blob);
-    const bytes = await blob.arrayBuffer();
-    const result = await importWorkbook(new File([bytes], 'roundtrip.xlsx'), createPlan());
-    assert.deepEqual(result.plan, plan);
-    const book = new ExcelJS.Workbook();
-    await book.xlsx.load(bytes);
-    assert.equal(
-      book.getWorksheet('기록')!.getCell('B2').value,
-      '=1+1',
-      'formula-like strings must remain strings',
-    );
-    assert.ok(
-      book.getWorksheet('오월 백업')!.rowCount > 5,
-      'large Unicode data should span backup chunks',
-    );
+    // Small prefix shifts expose surrogate pairs at the ZIP writer's internal
+    // 16,384-code-unit boundaries, independently of our 30,000-character cells.
+    for (const [suffix, time] of [
+      ['', ''],
+      ['x', '12:00'],
+      ['xx', ''],
+      ['xxx', '12:00'],
+    ]) {
+      plan.profile.groom = `테스트 신랑${suffix}`;
+      plan.profile.weddingTime = time;
+      plan.profile.familyMemo = '  앞뒤 공백 보존\n💐  ';
+      await exportWorkbook(plan);
+      assert.ok(blob);
+      const bytes = await blob.arrayBuffer();
+      const result = await importWorkbook(new File([bytes], 'roundtrip.xlsx'), createPlan());
+      for (let i = 0; i < plan.notes.length; i++) {
+        assert.ok(
+          result.plan.notes[i].body === plan.notes[i].body,
+          `note ${i} changed at prefix ${suffix.length}`,
+        );
+      }
+      assert.deepEqual(result.plan, plan);
+      const book = new ExcelJS.Workbook();
+      await book.xlsx.load(bytes);
+      assert.equal(
+        book.getWorksheet('기록')!.getCell('B2').value,
+        '=1+1',
+        'formula-like strings must remain strings',
+      );
+      const backup = book.getWorksheet('오월 백업')!;
+      assert.ok(backup.rowCount > 5, 'large Unicode data should span backup chunks');
+      for (let row = 5; row <= backup.rowCount; row++) {
+        const chunk = backup.getCell(row, 2).value;
+        assert.equal(typeof chunk, 'string');
+        assert.match(
+          chunk as string,
+          /^[\x20-\x7e]*$/,
+          'recovery payload must be safe across UTF-16 boundaries',
+        );
+      }
+    }
   } finally {
     URL.createObjectURL = originalCreate;
     URL.revokeObjectURL = originalRevoke;

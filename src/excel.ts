@@ -621,7 +621,13 @@ export async function exportWorkbook(input: Plan): Promise<void> {
     ['ID', '제목', '내용', '태그', '날짜', '고정'],
     plan.notes.map((n) => [n.id, n.title, n.body, n.tag, n.date, n.pinned]),
   );
-  const json = JSON.stringify(plan),
+  // ExcelJS/JSZip can split XML strings at an internal UTF-16 buffer boundary.
+  // Keep the recovery payload ASCII-only so no surrogate pair can be divided
+  // there. These are standard JSON escapes, decoded losslessly by JSON.parse.
+  const json = JSON.stringify(plan).replace(
+      /[\u007f-\uffff]/g,
+      (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    ),
     chunks: string[] = [];
   for (let start = 0; start < json.length; ) {
     let end = Math.min(start + 30000, json.length);

@@ -53,6 +53,13 @@ test('calendar date calculations handle leap days and explicit dates without tim
 test('backup validation rejects invalid amounts, dates and duplicate stable IDs', () => {
   const plan = createPlan();
   assert.equal(validatePlan(plan).version, 1);
+  assert.equal(
+    validatePlan({ ...plan, profile: { ...plan.profile, weddingTime: '' } }).profile.weddingTime,
+    '',
+  );
+  assert.throws(() =>
+    validatePlan({ ...plan, profile: { ...plan.profile, weddingTime: '24:00' } }),
+  );
   assert.throws(() =>
     validatePlan({ ...plan, profile: { ...plan.profile, weddingDate: '2027-02-30' } }),
   );
