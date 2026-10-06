@@ -15,6 +15,7 @@ export type Task = {
   category: Category;
   offset: number;
   date: string;
+  month?: string;
   done: boolean;
   owner: Owner;
   memo: string;
@@ -95,6 +96,8 @@ export const validDate = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   !Number.isNaN(Date.parse(value)) &&
   new Date(value).toISOString().slice(0, 10) === value;
+export const validMonth = (value: string) =>
+  /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && validDate(`${value}-01`);
 export const dayDiff = (date: string, from = today()) =>
   validDate(date) && validDate(from)
     ? Math.round((Date.parse(date) - Date.parse(from)) / 86400000)
@@ -102,7 +105,9 @@ export const dayDiff = (date: string, from = today()) =>
 export const addDays = (date: string, offset: number) =>
   validDate(date) ? new Date(Date.parse(date) + offset * 86400000).toISOString().slice(0, 10) : '';
 export const taskDate = (task: Task, weddingDate: string) =>
-  task.date || addDays(weddingDate, task.offset);
+  task.month ? '' : task.date || addDays(weddingDate, task.offset);
+export const taskMonth = (task: Task, weddingDate: string) =>
+  task.month || taskDate(task, weddingDate).slice(0, 7);
 export const money = (n: number) => new Intl.NumberFormat('ko-KR').format(n);
 export const shortMoney = (n: number) =>
   Math.abs(n) >= 10000
@@ -118,6 +123,14 @@ export const dateLabel = (date: string, full = false) =>
         timeZone: 'UTC',
       }).format(new Date(date))
     : '날짜 미정';
+export const taskDateLabel = (task: Task, weddingDate: string) => {
+  if (task.month) {
+    const [year, month] = task.month.split('-');
+    return `${year}년 ${Number(month)}월 · 날짜 미정`;
+  }
+  const date = taskDate(task, weddingDate);
+  return date ? dateLabel(date) : `D${task.offset > 0 ? '+' : ''}${task.offset}`;
+};
 export const totals = (expenses: Expense[]) =>
   expenses.reduce(
     (a, e) => ({
@@ -234,6 +247,8 @@ export function validatePlan(input: unknown): Plan {
         Number.isInteger(x.offset) &&
         Math.abs(x.offset) <= 36500 &&
         dateField(x.date) &&
+        (x.month === undefined ||
+          (typeof x.month === 'string' && validMonth(x.month) && x.date === '')) &&
         typeof x.done === 'boolean' &&
         owner(x.owner) &&
         textField(x.memo),

@@ -53,6 +53,8 @@ import {
   money,
   shortMoney,
   taskDate,
+  taskDateLabel,
+  taskMonth,
   today,
   totals,
   uid,
@@ -336,6 +338,9 @@ export default function App() {
       [...plan.tasks].sort(
         (a, b) =>
           Number(a.done) - Number(b.done) ||
+          (taskMonth(a, plan.profile.weddingDate) || '9999').localeCompare(
+            taskMonth(b, plan.profile.weddingDate) || '9999',
+          ) ||
           (taskDate(a, plan.profile.weddingDate) || '9999').localeCompare(
             taskDate(b, plan.profile.weddingDate) || '9999',
           ),
@@ -358,7 +363,7 @@ export default function App() {
     (e) => (filter === '전체' || e.category === filter) && `${e.title} ${e.vendor}`.includes(query),
   );
   const taskGroups = filteredTasks.reduce<Record<string, Task[]>>((a, t) => {
-    const key = taskDate(t, plan.profile.weddingDate).slice(0, 7) || '미정';
+    const key = taskMonth(t, plan.profile.weddingDate) || '미정';
     (a[key] ??= []).push(t);
     return a;
   }, {});
@@ -388,7 +393,7 @@ export default function App() {
           </small>
         </button>
         <span className={`task-date ${days !== null && days < 0 && !task.done ? 'overdue' : ''}`}>
-          {date ? dateLabel(date) : `D${task.offset > 0 ? '+' : ''}${task.offset}`}
+          {taskDateLabel(task, plan.profile.weddingDate)}
           <small>
             {task.done
               ? '완료'
@@ -862,7 +867,7 @@ export default function App() {
             <>
               {header(
                 '우리의 준비 타임라인',
-                '결혼식 날짜가 바뀌어도, 준비 일정은 함께 움직여요.',
+                '월별 계획과 날짜가 정해진 할 일을 함께 관리해요.',
                 <>
                   <Button
                     variant="secondary"
@@ -879,6 +884,10 @@ export default function App() {
                         '결혼준비-일정.ics',
                         'text/calendar;charset=utf-8',
                       );
+                      if (plan.tasks.some((task) => !task.done && task.month))
+                        notify(
+                          '날짜가 정해진 일정만 캘린더에 담았어요. 월별 계획은 타임라인에서 확인해 주세요.',
+                        );
                     }}
                   >
                     <Download size={16} />
@@ -1498,7 +1507,10 @@ export default function App() {
                     <h2>
                       <Heart size={19} /> 우리 두 사람
                     </h2>
-                    <p>결혼식 날짜를 바꾸면 직접 지정한 날짜를 제외한 일정이 자동 조정됩니다.</p>
+                    <p>
+                      결혼식 날짜를 바꾸면 결혼식 기준 일정만 자동 조정됩니다. 직접 정한 날짜와 월은
+                      유지됩니다.
+                    </p>
                   </div>
                 </div>
                 <form
@@ -1793,6 +1805,7 @@ function Calendar({
   const [y, m] = month.split('-').map(Number),
     first = new Date(y, m - 1, 1).getDay(),
     last = new Date(y, m, 0).getDate();
+  const monthTasks = tasks.filter((task) => task.month === month);
   const move = (delta: number) => {
     const d = new Date(y, m - 1 + delta, 1);
     setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
@@ -1857,6 +1870,32 @@ function Calendar({
           );
         })}
       </div>
+      {monthTasks.length > 0 && (
+        <section aria-label="이번 달 날짜 미정 일정">
+          <div className="section-head">
+            <div>
+              <h3>이번 달 계획 · 날짜 미정</h3>
+              <p>아직 날짜를 정하지 않은 {monthTasks.length}개의 할 일이 있어요.</p>
+            </div>
+          </div>
+          <div className="task-list">
+            {monthTasks.map((task) => (
+              <div key={task.id} className={`task-row ${task.done ? 'is-done' : ''}`}>
+                <button className="task-title" onClick={() => edit(task)}>
+                  <span>
+                    {task.done ? '✓ ' : ''}
+                    {task.title}
+                  </span>
+                  <small>
+                    {task.category} · {task.owner}
+                  </small>
+                </button>
+                <span className="task-date">{taskDateLabel(task, weddingDate)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="calendar-day-detail">
         <h3>{dateLabel(selectedDate)}의 할 일</h3>
         {tasks
@@ -1898,7 +1937,17 @@ function ItemEditor({
 }) {
   const [error, setError] = useState('');
   const [dateMode, setDateMode] = useState(
-    editor.type === 'task' && editor.item.date ? 'fixed' : 'relative',
+    editor.type === 'task' && editor.item.month
+      ? 'month'
+      : editor.type === 'task' && editor.item.date
+        ? 'fixed'
+        : 'relative',
+  );
+  const [fixedTaskDate, setFixedTaskDate] = useState(
+    editor.type === 'task' ? editor.item.date : '',
+  );
+  const [fixedTaskMonth, setFixedTaskMonth] = useState(
+    editor.type === 'task' ? (editor.item.month ?? '') : '',
   );
   const map = {
     task: 'tasks',
@@ -1929,6 +1978,7 @@ function ItemEditor({
         category: s('category') as Category,
         owner: s('owner') as Task['owner'],
         date: dateMode === 'fixed' ? s('date') : '',
+        month: dateMode === 'month' ? s('month') : undefined,
         offset: dateMode === 'relative' ? n('offset') : editor.item.offset,
         memo: s('memo'),
       };
@@ -2045,9 +2095,16 @@ function ItemEditor({
                 </select>
               </Field>
               <Field label="일정 기준">
-                <select value={dateMode} onChange={(e) => setDateMode(e.target.value)}>
+                <select
+                  value={dateMode}
+                  onChange={(e) => {
+                    if (dateMode === 'month' && e.target.value === 'fixed') setFixedTaskDate('');
+                    setDateMode(e.target.value);
+                  }}
+                >
                   <option value="relative">결혼식 날짜 기준</option>
                   <option value="fixed">직접 날짜 지정</option>
+                  <option value="month">월 지정 · 날짜 미정</option>
                 </select>
               </Field>
               {dateMode === 'relative' ? (
@@ -2061,13 +2118,27 @@ function ItemEditor({
                     defaultValue={editor.item.offset}
                   />
                 </Field>
+              ) : dateMode === 'month' ? (
+                <Field
+                  label="진행 월"
+                  hint="정확한 날짜가 정해지면 직접 날짜 지정으로 바꿔 주세요."
+                >
+                  <input
+                    name="month"
+                    type="month"
+                    required
+                    value={fixedTaskMonth}
+                    onChange={(event) => setFixedTaskMonth(event.target.value)}
+                  />
+                </Field>
               ) : (
                 <Field label="진행 날짜">
                   <input
                     name="date"
                     type="date"
                     required
-                    defaultValue={editor.item.date || today()}
+                    value={fixedTaskDate}
+                    onChange={(event) => setFixedTaskDate(event.target.value)}
                   />
                 </Field>
               )}

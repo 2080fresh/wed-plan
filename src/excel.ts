@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import type { Worksheet, CellValue } from 'exceljs';
+import type { Worksheet, CellValue, Cell } from 'exceljs';
 import { dayDiff, download, today, uid, validDate, validatePlan, taskDate } from './model';
 import type { Category, Expense, Note, Plan, Task, Vendor } from './model';
 
@@ -28,8 +28,16 @@ function scalar(value: CellValue): string | number | boolean | Date | null {
   if ('error' in value) return value.error;
   return null;
 }
+function cellScalar(source: Cell): ReturnType<typeof scalar> {
+  const value = source.value;
+  // ExcelJS's value getter omits falsy formula results, including cached 0.
+  // Its result getter preserves the cached value and distinguishes undefined.
+  if (value && typeof value === 'object' && ('formula' in value || 'sharedFormula' in value))
+    return scalar(source.result ?? null);
+  return scalar(value);
+}
 function cell(sheet: Worksheet, address: string) {
-  return scalar(sheet.getCell(address).value);
+  return cellScalar(sheet.getCell(address));
 }
 function text(value: ReturnType<typeof scalar>): string {
   if (value === null) return '';
@@ -152,7 +160,7 @@ function sourceNotes(book: ExcelJS.Workbook): Note[] {
     sheet.eachRow((row) => {
       const parts: string[] = [];
       row.eachCell((c) => {
-        const value = text(scalar(c.value));
+        const value = text(cellScalar(c));
         if (value) parts.push(`${c.address}: ${value}`);
       });
       if (parts.length) lines.push(parts.join(' · '));
@@ -187,28 +195,18 @@ function sourceNotes(book: ExcelJS.Workbook): Note[] {
 function timelineTasks(sheet: Worksheet, weddingDate: string): Task[] {
   const tasks: Task[] = [];
   for (let col = 3; col <= 21; col++) {
-    const heading = scalar(sheet.getCell(4, col).value),
+    const heading = cellScalar(sheet.getCell(4, col)),
       period = yearMonth(heading);
     const label = text(heading);
     for (let row = 5; row <= (label === '전날' ? 20 : 13); row++) {
-      const title = text(scalar(sheet.getCell(row, col).value));
+      const title = text(cellScalar(sheet.getCell(row, col)));
       if (!title) continue;
       let date = '',
-        offset = label === '전날' ? -1 : label === '당일' ? 0 : (col - 19) * 30;
+        offset = label === '전날' ? -1 : 0;
       const explicit = title.match(/(?:\(|\s)(\d{1,2})\s*\/\s*(\d{1,2})(?:\)|\s|$)/);
       if (explicit && period) {
         const candidate = `${period.year}-${explicit[1].padStart(2, '0')}-${explicit[2].padStart(2, '0')}`;
         if (validDate(candidate)) date = candidate;
-      } else if (label === '전날' && weddingDate) {
-        offset = -1;
-      } else if (label === '당일' && weddingDate) {
-        offset = 0;
-      } else if (period) {
-        // Source gives a month, not a day. Use month-relative timing and retain the month in the memo.
-        const weddingPeriod = yearMonth(weddingDate);
-        if (weddingPeriod)
-          offset =
-            ((period.year - weddingPeriod.year) * 12 + period.month - weddingPeriod.month) * 30;
       }
       if (date && weddingDate) offset = dayDiff(date, weddingDate) ?? offset;
       tasks.push({
@@ -216,6 +214,9 @@ function timelineTasks(sheet: Worksheet, weddingDate: string): Task[] {
         title: title.slice(0, 20000),
         category: category(title),
         date,
+        ...(!date && period
+          ? { month: `${period.year}-${String(period.month).padStart(2, '0')}` }
+          : {}),
         offset,
         done: false,
         owner: '함께',
@@ -242,10 +243,10 @@ function budgetExpenses(sheet: Worksheet): Expense[] {
       const sourceTotal = amount(cell(sheet, `G${row}`));
       const schedule: string[] = [];
       for (let col = 8; col <= 24; col++) {
-        const payment = amount(scalar(sheet.getCell(row, col).value));
+        const payment = amount(cellScalar(sheet.getCell(row, col)));
         if (payment)
           schedule.push(
-            `${text(scalar(sheet.getCell(4, col).value)).slice(0, 7)} ${payment.toLocaleString('ko-KR')}원`,
+            `${text(cellScalar(sheet.getCell(4, col))).slice(0, 7)} ${payment.toLocaleString('ko-KR')}원`,
           );
       }
       const memo = [
@@ -318,7 +319,7 @@ function vendorsFromWorkbook(book: ExcelJS.Workbook): Vendor[] {
         `원본 총 견적: ${total === null ? '미확인' : `${total.toLocaleString('ko-KR')}원`}`,
       ];
       for (let col = row <= 5 ? 8 : 9; col <= 16; col++) {
-        const raw = text(scalar(venues.getCell(row, col).value));
+        const raw = text(cellScalar(venues.getCell(row, col)));
         if (raw) details.push(`${venues.getCell(row, col).address}: ${raw}`);
       }
       add(name, '웨딩홀', total ?? 0, details.join('\n'));
@@ -332,8 +333,7 @@ function vendorsFromWorkbook(book: ExcelJS.Workbook): Vendor[] {
       if (!studio) continue;
       const raw = Array.from(
         { length: 6 },
-        (_, i) =>
-          `${String.fromCharCode(70 + i)}: ${text(scalar(beauty.getCell(row, i + 6).value))}`,
+        (_, i) => `${String.fromCharCode(70 + i)}: ${text(cellScalar(beauty.getCell(row, i + 6)))}`,
       ).filter((v) => !v.endsWith(': '));
       add(
         `${studio}${branch ? ` · ${branch}` : ''}`,
@@ -351,7 +351,7 @@ function vendorsFromWorkbook(book: ExcelJS.Workbook): Vendor[] {
         if (!name) continue;
         const raw: string[] = [];
         for (let col = 4; col <= 14; col++) {
-          const value = text(scalar(beauty.getCell(row, col).value));
+          const value = text(cellScalar(beauty.getCell(row, col)));
           if (value) raw.push(`${beauty.getCell(row, col).address}: ${value}`);
         }
         add(
@@ -545,7 +545,7 @@ export async function exportWorkbook(input: Plan): Promise<void> {
       t.category,
       t.owner,
       t.done ? '완료' : '준비 중',
-      taskDate(t, plan.profile.weddingDate),
+      t.month ? `${t.month} (월단위)` : taskDate(t, plan.profile.weddingDate),
       t.date,
       t.offset,
       t.memo,

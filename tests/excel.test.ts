@@ -55,10 +55,72 @@ test('original-format import never converts estimated or unconfirmed payments in
   assert.ok(plan.notes.some((n) => n.id === 'own'));
 });
 
+test('formula cache preserves numeric zero separately from an absent cached result', async () => {
+  const book = new ExcelJS.Workbook();
+  const sheet = book.addWorksheet('결혼식 예산');
+  for (const [row, title] of [
+    [7, 'zero-formula'],
+    [8, 'zero-shared'],
+    [9, 'missing-cache'],
+    [10, 'zero-literal'],
+  ] as const) {
+    sheet.getCell(`E${row}`).value = title;
+    sheet.getCell(`F${row}`).value = 100;
+  }
+  sheet.getCell('G7').value = {
+    formula: 'SUM(H7:X7)',
+    result: 0,
+    shareType: 'shared',
+    ref: 'G7:G8',
+  };
+  sheet.getCell('G8').value = { sharedFormula: 'G7', result: 0 };
+  sheet.getCell('G9').value = { formula: 'SUM(H9:X9)' };
+  sheet.getCell('G10').value = 0;
+  const { plan } = await importWorkbook(await asFile(book), createPlan());
+  const imported = new Map(plan.expenses.map((e) => [e.title, e]));
+  for (const title of ['zero-formula', 'zero-shared', 'zero-literal']) {
+    assert.match(imported.get(title)!.memo, /G열 합계[^\n]*: 0원/);
+    assert.doesNotMatch(imported.get(title)!.memo, /캐시값 없음/);
+  }
+  assert.match(imported.get('missing-cache')!.memo, /캐시값 없음/);
+  assert.match(plan.notes.map((n) => n.body).join('\n'), /G7: 0/);
+});
+
+test('timeline import preserves exact source months without inventing day offsets', async () => {
+  const book = new ExcelJS.Workbook();
+  const sheet = book.addWorksheet('결혼식 타임라인');
+  sheet.getCell('C4').value = '2026년 6월';
+  sheet.getCell('C5').value = '양가 부모님 인사';
+  sheet.getCell('F4').value = '2026년 9월';
+  sheet.getCell('F5').value = '스튜디오 계약';
+  sheet.getCell('L4').value = '2027년 3월';
+  sheet.getCell('L5').value = '스튜디오 촬영(3/18)';
+  sheet.getCell('S2').value = '예정일(10/17)';
+  sheet.getCell('S4').value = '2027년 10월';
+  sheet.getCell('T4').value = '전날';
+  sheet.getCell('T5').value = '한복 챙기기';
+  sheet.getCell('U4').value = '당일';
+  sheet.getCell('U5').value = '부케 배송 받기';
+  const { plan } = await importWorkbook(await asFile(book), createPlan());
+  const tasks = new Map(plan.tasks.map((t) => [t.title, t]));
+  assert.deepEqual(
+    [tasks.get('양가 부모님 인사')!.month, tasks.get('스튜디오 계약')!.month],
+    ['2026-06', '2026-09'],
+  );
+  assert.equal(tasks.get('양가 부모님 인사')!.date, '');
+  assert.equal(tasks.get('양가 부모님 인사')!.offset, 0);
+  assert.equal(tasks.get('스튜디오 촬영(3/18)')!.date, '2027-03-18');
+  assert.equal(tasks.get('스튜디오 촬영(3/18)')!.month, undefined);
+  assert.equal(tasks.get('한복 챙기기')!.offset, -1);
+  assert.equal(tasks.get('한복 챙기기')!.month, undefined);
+  assert.equal(tasks.get('부케 배송 받기')!.offset, 0);
+});
+
 test('exported workbook roundtrips every plan field, Unicode and formula-like strings', async () => {
   const plan: Plan = createPlan();
   plan.profile.groom = '테스트 신랑';
   plan.profile.weddingDate = '2027-10-17';
+  plan.tasks[0] = { ...plan.tasks[0], date: '', offset: 0, month: '2026-11' };
   plan.notes.push({
     id: 'unicode',
     title: '=1+1',
@@ -130,6 +192,7 @@ test('exported workbook roundtrips every plan field, Unicode and formula-like st
         '=1+1',
         'formula-like strings must remain strings',
       );
+      assert.equal(book.getWorksheet('일정')!.getCell('F2').value, '2026-11 (월단위)');
       const backup = book.getWorksheet('오월 백업')!;
       assert.ok(backup.rowCount > 5, 'large Unicode data should span backup chunks');
       for (let row = 5; row <= backup.rowCount; row++) {
