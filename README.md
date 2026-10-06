@@ -1,64 +1,47 @@
-# 오월 · 우리의 결혼 준비
+# 우리의 결혼 준비
 
-결혼 준비 엑셀의 일정·예산·업체 비교를 웹에서 관리하는 한국어 반응형 플랫폼입니다. GitHub Pages용 정적 웹앱이며 개인 기록은 배포 소스와 분리됩니다.
+타임라인과 신혼집 자금 계획 표, 두 화면으로 준비하는 한국어 웹앱입니다.
+GitHub Pages가 화면을 제공하고, 개인 준비 기록은 Supabase 공동 공간에 저장합니다.
 
-## 사용 기능
+## 사용하기
 
-- 결혼식 날짜 기준 일정, 담당자, 완료 체크, 월별 달력, ICS 캘린더 내보내기
-- 예상 비용·계약 금액·기납부액·잔금, 신랑/신부 부담 비율, 웨딩홀 견적 계산기
-- 신혼집 자금 계획: 월초 자금, 수입·지출·대출·상환, 예정/완료별 월말 잔액
-- 업체 견적·선호도·계약 상태 비교, 업체별 웨딩홀 투어 체크리스트
-- 동반인 포함 하객 수, 참석 여부, 청첩장 전달 체크
-- 준비 노트, 상견례 내용·청첩장 문구 편집 및 비공개 미리보기
-- 원본 결혼 준비 XLSX 가져오기, JSON 백업/복원, 편집 가능한 Excel 내보내기
-- 로그인 없는 Supabase 공동 공간: 공유 링크로 기기 연결, 버전 충돌 보호
+- **타임라인**: 제목·담당·월/날짜·메모를 직접 수정하고 완료를 체크합니다.
+- **신혼집 자금 계획**: 항목 × 월 표에서 금액을 수정하면 월별 수입·지출·대출·상환과 잔액을 다시 계산합니다.
+- 칸을 수정한 뒤 Enter 또는 다른 칸으로 이동하면 자동 저장합니다. 따로 가져오기·공동 저장 버튼을 누르지 않습니다.
+- 두 기기에서 같은 공유 링크를 한 번 열면 이후 자동 연결됩니다. 계정·로그인·SMTP 설정은 없습니다.
+- 다른 기기의 변경은 WebSocket 알림을 통해 자동 반영합니다. 연결이 끊기면 기기에 수정을 보관하고 재연결 후 저장합니다.
+- 공유 아이콘에서 다른 기기 연결 링크와 JSON 백업을 사용할 수 있습니다.
 
-## 시작하기
+기존 예산·업체·기록 데이터는 백업과 공동 데이터에 보존하지만 화면에는 표시하지 않습니다.
+원본 엑셀의 월 단위 일정은 특정 날짜로 추정하지 않습니다.
 
-Node.js 22 이상, pnpm 11을 사용합니다.
+[웹사이트](https://2080fresh.github.io/wed-plan/) · [공동 사용 안내](docs/SHARED-SETUP.md)
+
+## 개발 및 배포
+
+Node.js 22 이상과 pnpm 11을 사용합니다.
 
 ```sh
-corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
-```
-
-```sh
 pnpm test
 pnpm build
-pnpm preview
 ```
 
-첫 실행 시 기본 예산 3,000만 원과 일반 준비 일정만 표시됩니다. 실제 이름·날짜·금액은 **설정**에서 입력하거나 **엑셀 가져오기**로 읽어오세요. 원본 엑셀은 변경하지 않습니다. 원본의 월별 납부 예정액은 결제 완료로 판단하지 않으며, 확인할 내용은 가져오기 화면에 표시됩니다.
+GitHub Pages Source를 GitHub Actions로 선택합니다. `main` push 시 테스트·빌드 후 배포합니다.
+`VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`는 공개 프로젝트 설정이며 Actions 변수 또는 로컬 `.env.local`에 지정합니다.
+공유 토큰과 개인 준비 내용을 소스나 공개 환경 변수에 넣지 않습니다.
 
-## 배포
+## 구성
 
-저장소 Settings → Pages → Source를 **GitHub Actions**로 설정합니다. `main` 브랜치 push 시 테스트와 빌드를 통과한 `dist`만 배포합니다. 상대 경로 asset과 hash navigation으로 `/wed-plan/` 하위 경로 및 새로고침을 지원합니다.
+- `src/App.tsx`: 두 화면과 공유/백업
+- `src/SimpleTimeline.tsx`: 일정 직접 편집
+- `src/SimpleCashflow.tsx`, `src/cashflowGrid.ts`: 월별 자금 표
+- `src/autoSync.ts`, `src/useSharedPlan.ts`: 자동 저장, 오프라인 수정 보관, 변경 병합
+- `src/realtime.ts`: 내용 없는 변경 알림 수신
+- `src/linkCloud.ts`: 공유 토큰으로 보호하는 읽기·저장 API
+- `src/model.ts`, `src/cashflow.ts`: 데이터 검증과 계산
+- `supabase/setup.sql`, `supabase/link-workspace.sql`, `supabase/link-notifications.sql`: 저장 및 알림 설치
 
-배포 주소: [오월 · 우리의 결혼 준비](https://2080fresh.github.io/wed-plan/)
-
-공동 저장의 기본 프로젝트는 GitHub Actions 변수 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`로 설정합니다. 로컬에서는 `.env.example`을 `.env.local`로 복사해 공개 URL과 Publishable key를 입력합니다. 서비스 비밀 키는 사용하지 않습니다.
-
-공식 참고: [GitHub Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [Vite 정적 배포](https://vite.dev/guide/static-deploy.html).
-
-## 두 사람이 함께 사용하기
-
-두 분에게 전달한 **공유 링크**를 각 기기에서 한 번 열면 같은 준비 공간을 사용할 수 있습니다. 이메일·비밀번호나 계정 등록은 필요하지 않습니다. 링크를 기억한 기기에서는 다음 방문에 다시 입력하지 않아도 됩니다. 처음에는 공동 기록을 가져오거나, 아직 저장하지 않은 공간에서 확인 후 **이 기기의 기록으로 공동 준비 시작**을 선택합니다. 자세한 사용법은 [공동 저장 안내](docs/SHARED-SETUP.md)를 참고하세요.
-
-기기에 자동 저장되지만 공동 공간은 **최신 공동 기록 가져오기 → 편집 → 공동 공간에 저장** 방식입니다. 새로고침한 뒤에는 최신 기록을 가져와야 다시 공동 저장할 수 있습니다. 가져오기 전 기기 기록은 JSON으로 백업됩니다. 상대방이 먼저 저장하면 덮어쓰기를 거부하며, 충돌 시 내 기록을 백업하고 최신 내용을 가져와 수정 사항을 반영합니다. 실시간 자동 병합은 제공하지 않습니다.
-
-**다른 기기 연결 링크 복사**로 같은 공간을 연결합니다. 링크를 가진 사람은 읽고 수정할 수 있으며 기기 수 제한은 없습니다. **이 기기 연결 해제**는 현재 브라우저에 기억한 링크만 지우며 기록이나 다른 기기의 연결은 유지됩니다.
-
-## 데이터 보관
-
-- 원본 XLSX, `.analysis`, `output`, `node_modules`, 환경 파일은 Git에서 제외됩니다. `dist`에는 개인 엑셀이나 개인 기록을 포함하지 않습니다.
-- 브라우저 저장은 해당 기기·브라우저·사이트 주소에 한정됩니다. 데이터를 삭제하면 로컬 기록도 사라지므로 정기적으로 JSON 백업을 보관하세요.
-- 기존 기록을 바꾸는 가져오기 작업은 적용 전 백업 파일을 내려받습니다.
-- 개인 공유 링크는 `output/우리의-준비공간-링크.txt`로 별도 전달하며 소스·공개 환경 변수·JSON/Excel 백업에 포함하지 않습니다.
-- Supabase는 공유 토큰의 SHA-256 해시로 공간 접근을 확인합니다. 테이블 직접 접근은 차단하고, 토큰이 일치하는 공간만 전용 함수로 읽고 수정합니다. 브라우저에는 공개 프로젝트 URL과 Publishable key만 사용합니다.
-- 현재 상견례·청첩장 기능은 저장된 글의 미리보기 단계입니다. 공개 청첩장 URL, 사진, 지도, RSVP는 향후 확장 범위입니다.
-- 드레스 도안의 원본 삽입 이미지는 가져오지 않습니다. 비정형 원본 메모는 준비 노트로 보관합니다.
-
-## 구조
-
-`src/model.ts`: 데이터/계산/백업 검증 · `src/excel.ts`: 엑셀 어댑터 · `src/cloud.ts`: 공유 API · `supabase/setup.sql`: 기존 공동 공간 기반 · `supabase/link-workspace.sql`: 로그인 없는 링크 접근 및 버전 관리 · `src/CashflowView.tsx`: 자금 계획 · `src/App.tsx`: 준비 화면
+원본 XLSX, `.analysis`, `output`, `.env.local`과 개인 공유 링크는 Git 제외 대상입니다.
+배포 파일에 개인 기록을 포함하지 않습니다.

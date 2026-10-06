@@ -1,0 +1,259 @@
+.simple-app {
+  min-height: 100vh;
+  background: #f7f8fa;
+  color: #30333b;
+}
+.simple-topbar {
+  height: 70px;
+  padding: 0 max(24px, calc((100vw - 1440px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e7e8ed;
+  background: white;
+}
+.simple-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #30333b;
+  white-space: nowrap;
+}
+.simple-brand > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #7b65af;
+  background: #f0ecf7;
+}
+.simple-top-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.simple-sync {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #607d6e;
+}
+.simple-sync.offline,
+.simple-sync.error {
+  color: #986232;
+}
+.simple-icon {
+  min-width: 38px;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e7e8ed;
+  border-radius: 10px;
+}
+.simple-main {
+  max-width: 1440px;
+  margin: auto;
+  padding: 40px 24px 24px;
+}
+.simple-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+.simple-heading h1 {
+  font-size: 27px;
+  letter-spacing: -1px;
+}
+.simple-heading p {
+  color: #7a7e8b;
+  margin-top: 7px;
+  font-size: 13px;
+}
+.simple-wedding-date {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #747985;
+}
+.simple-wedding-date input {
+  max-width: 165px;
+}
+.simple-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e3e5ea;
+}
+.simple-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  padding: 14px 18px 17px;
+  border-bottom: 3px solid transparent;
+  color: #888b95;
+  margin-bottom: -1px;
+}
+.simple-tabs button[aria-current='page'] {
+  color: #6e579f;
+  border-color: #7b65af;
+}
+.simple-content {
+  min-width: 0;
+}
+.simple-footer {
+  color: #9497a1;
+  font-size: 11px;
+  text-align: center;
+  padding: 24px 0 8px;
+}
+.simple-connect {
+  background: white;
+  border: 1px solid #e2dbea;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.simple-connect p {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+.simple-connect form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 240px;
+}
+.simple-connect form input {
+  flex: 1;
+  min-width: 0;
+}
+.simple-error {
+  padding: 12px 16px;
+  border: 1px solid #edcfb3;
+  border-radius: 9px;
+  color: #8d5027;
+  background: #fffbf4;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.simple-share {
+  display: grid;
+  gap: 16px;
+  line-height: 1.8;
+}
+.simple-share small {
+  color: #7a7e8b;
+}
+.simple-share input {
+  font-size: 12px;
+}
+.simple-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  background: #33303e;
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 30px #0002;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  max-width: calc(100vw - 32px);
+  font-size: 13px;
+}
+.simple-toast button {
+  color: white;
+  flex-shrink: 0;
+}
+.simple-app .spin {
+  animation: simple-spin 1s linear infinite;
+}
+@keyframes simple-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 640px) {
+  .simple-topbar {
+    padding: 0 16px;
+    height: 60px;
+  }
+  .simple-brand {
+    font-size: 13px;
+    gap: 7px;
+  }
+  .simple-brand > span {
+    width: 30px;
+    height: 30px;
+  }
+  .simple-top-actions {
+    gap: 8px;
+  }
+  .simple-sync {
+    font-size: 10px;
+    gap: 3px;
+  }
+  .simple-sync svg {
+    width: 12px;
+  }
+  .simple-icon {
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .simple-main {
+    padding: 24px 12px 16px;
+  }
+  .simple-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 18px;
+  }
+  .simple-heading h1 {
+    font-size: 23px;
+  }
+  .simple-heading p {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .simple-wedding-date input {
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+  .simple-tabs {
+    gap: 0;
+    margin-bottom: 16px;
+  }
+  .simple-tabs button {
+    flex: 1;
+    font-size: 13px;
+    padding: 12px 8px;
+    gap: 6px;
+  }
+  .simple-connect {
+    padding: 14px;
+  }
+  .simple-connect form {
+    min-width: 100%;
+  }
+  .simple-footer {
+    line-height: 1.7;
+  }
+}

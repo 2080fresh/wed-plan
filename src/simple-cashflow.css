@@ -1,0 +1,403 @@
+.simple-cashflow {
+  --scf-border: #e1e5e4;
+  --scf-green: #31554b;
+  color: #27372f;
+  font-size: 14px;
+}
+.simple-cashflow * {
+  box-sizing: border-box;
+}
+.simple-cashflow .scf-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+}
+.simple-cashflow h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+.simple-cashflow .scf-heading p,
+.simple-cashflow .scf-footnote {
+  margin: 7px 0 0;
+  color: #68766d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.simple-cashflow button,
+.simple-cashflow input,
+.simple-cashflow select {
+  font: inherit;
+}
+.simple-cashflow button {
+  cursor: pointer;
+  border: 1px solid var(--scf-border);
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: white;
+  color: #354b3e;
+}
+.simple-cashflow button:disabled,
+.simple-cashflow input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.simple-cashflow button:focus-visible,
+.simple-cashflow input:focus-visible,
+.simple-cashflow select:focus-visible {
+  outline: 2px solid #497968;
+  outline-offset: 1px;
+}
+.simple-cashflow .scf-actions {
+  display: flex;
+  gap: 7px;
+  white-space: nowrap;
+}
+.simple-cashflow .scf-opening {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.simple-cashflow .scf-opening-label {
+  font-weight: 600;
+  font-size: 13px;
+  margin-right: 4px;
+}
+.simple-cashflow .scf-opening .scf-amount {
+  width: 150px;
+  border: 1px solid var(--scf-border);
+  border-radius: 5px;
+  background: white;
+  padding-right: 10px;
+}
+.simple-cashflow .scf-opening small {
+  color: #758177;
+  font-size: 12px;
+}
+.simple-cashflow .scf-message,
+.simple-cashflow .scf-error {
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: #fff8e6;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.simple-cashflow .scf-error {
+  color: #a83935;
+  background: #fff0ee;
+}
+.simple-cashflow .scf-undo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.simple-cashflow .scf-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.simple-cashflow .scf-add input,
+.simple-cashflow .scf-add select {
+  border: 1px solid var(--scf-border);
+  border-radius: 5px;
+  min-height: 37px;
+  padding: 8px;
+  background: white;
+}
+.simple-cashflow .scf-add input {
+  flex: 1;
+  min-width: 130px;
+}
+.simple-cashflow .scf-scroll {
+  overflow: auto;
+  max-height: min(76vh, 860px);
+  border: 1px solid var(--scf-border);
+  border-radius: 8px;
+  scrollbar-color: #b5c6ba #f4f6f4;
+}
+.simple-cashflow .scf-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: white;
+}
+.simple-cashflow .scf-table caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.simple-cashflow .scf-table th,
+.simple-cashflow .scf-table td {
+  height: 43px;
+  min-width: 136px;
+  width: 136px;
+  padding: 0;
+  border-right: 1px solid var(--scf-border);
+  border-bottom: 1px solid var(--scf-border);
+  text-align: right;
+  vertical-align: middle;
+}
+.simple-cashflow .scf-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 190px;
+  min-width: 190px;
+  max-width: 190px;
+  padding: 9px 12px;
+  text-align: left;
+  line-height: 1.35;
+  white-space: normal;
+  background: white;
+  box-shadow: 1px 0 0 var(--scf-border);
+  font-weight: 500;
+}
+.simple-cashflow .scf-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f3f6f3;
+  color: #586b5e;
+  text-align: center;
+  font-weight: 600;
+}
+.simple-cashflow .scf-table thead th:first-child {
+  z-index: 4;
+  background: #f3f6f3;
+}
+.simple-cashflow .scf-table tr:last-child > * {
+  border-bottom: 0;
+}
+.simple-cashflow .scf-table tr > *:last-child {
+  border-right: 0;
+}
+.simple-cashflow .scf-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.simple-cashflow .scf-amount {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 42px;
+  padding: 8px 22px 8px 7px;
+  border: 0;
+  border-radius: 0;
+  outline-offset: -2px;
+  box-shadow: none;
+  background: transparent;
+  color: #2a4031;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.simple-cashflow .scf-amount:focus {
+  outline: 2px solid #59826b;
+  outline-offset: -2px;
+  background: #f9fdf9;
+}
+.simple-cashflow .scf-details {
+  position: absolute;
+  right: 1px;
+  padding: 3px;
+  border: 0;
+  font-size: 14px;
+  color: #8a998d;
+  background: transparent;
+  opacity: 0.3;
+}
+.simple-cashflow .scf-cell:hover .scf-details,
+.simple-cashflow .scf-cell:focus-within .scf-details {
+  opacity: 1;
+}
+.simple-cashflow .scf-multiple {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 10px;
+  width: 100%;
+  height: 42px;
+  font-variant-numeric: tabular-nums;
+}
+.simple-cashflow .scf-multiple small {
+  font-size: 10px;
+  color: #7d897f;
+}
+.simple-cashflow .scf-drop-draft {
+  float: right;
+  font-size: 15px;
+  border: 0;
+  padding: 0 3px;
+  color: #929b96;
+}
+.simple-cashflow .scf-table th.scf-row-label {
+  padding: 0 7px 0 10px;
+}
+.simple-cashflow .scf-row-title {
+  display: flex;
+  align-items: center;
+}
+.simple-cashflow .scf-row-name {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  box-shadow: none;
+}
+.simple-cashflow .scf-row-name:focus {
+  outline-offset: -1px;
+}
+.simple-cashflow .scf-table .scf-category > * {
+  height: 29px;
+  background: #f5f7f5;
+  color: #4c6253;
+  font-weight: 700;
+}
+.simple-cashflow .scf-table .scf-category th {
+  font-size: 11px;
+}
+.simple-cashflow .scf-table .scf-subtotal > * {
+  padding: 8px 10px;
+  font-weight: 600;
+  background: #fafbf9;
+  color: #586a5d;
+}
+.simple-cashflow .scf-table .scf-total > * {
+  padding: 9px 10px;
+  background: #f4f7f3;
+  font-weight: 600;
+}
+.simple-cashflow .scf-table .scf-balance > * {
+  padding: 11px 10px;
+  background: #e9f1e9;
+  color: #2c5138;
+  font-weight: 750;
+}
+.simple-cashflow .scf-table .scf-negative {
+  color: #b1493f;
+}
+.simple-cashflow .scf-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 22px;
+  border: 1px solid #e0e7e0;
+  border-radius: 12px;
+  background: white;
+  color: #2b3c30;
+  box-shadow: 0 24px 70px #233b3233;
+}
+.simple-cashflow .scf-dialog::backdrop {
+  background: #24342b66;
+}
+.simple-cashflow .scf-dialog-heading,
+.simple-cashflow .scf-record-heading,
+.simple-cashflow .scf-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.simple-cashflow .scf-dialog-heading h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.simple-cashflow .scf-dialog-heading button {
+  padding: 2px 9px;
+  font-size: 22px;
+  border: 0;
+}
+.simple-cashflow .scf-dialog > p {
+  font-size: 12px;
+  color: #738074;
+  line-height: 1.6;
+}
+.simple-cashflow .scf-record {
+  padding: 12px 0;
+  border-top: 1px solid var(--scf-border);
+}
+.simple-cashflow .scf-record-heading {
+  font-size: 12px;
+}
+.simple-cashflow .scf-record-amount {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.simple-cashflow .scf-record-amount input {
+  width: 150px;
+  padding-right: 10px;
+  border: 1px solid var(--scf-border);
+  border-radius: 5px;
+}
+.simple-cashflow .scf-record-memo {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  color: #6f7c71;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.simple-cashflow .scf-dialog-footer {
+  margin-top: 15px;
+  justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .simple-cashflow .scf-heading {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+  .simple-cashflow h2 {
+    font-size: 19px;
+  }
+  .simple-cashflow .scf-opening small {
+    flex-basis: 100%;
+  }
+  .simple-cashflow .scf-table th:first-child {
+    min-width: 130px;
+    width: 130px;
+    max-width: 130px;
+    font-size: 11px;
+    padding-left: 9px;
+  }
+  .simple-cashflow .scf-table td,
+  .simple-cashflow .scf-table th {
+    min-width: 125px;
+    width: 125px;
+  }
+  .simple-cashflow .scf-scroll {
+    max-height: 70vh;
+  }
+  .simple-cashflow .scf-details {
+    opacity: 0.65;
+  }
+  .simple-cashflow .scf-record-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
