@@ -65,7 +65,7 @@ import {
   type Task,
   type Vendor,
 } from './model';
-import { SharedSettings, initializeSharedAuth } from './SharedSettings';
+import { SharedSettings, receiveSharedLink } from './SharedSettings';
 import { Cashflow } from './CashflowView';
 
 type Page =
@@ -161,6 +161,7 @@ function initialPlan() {
   }
 }
 function readPage(): Page {
+  if (receiveSharedLink()) return 'settings';
   const key = location.hash.slice(1);
   return Object.keys(pageNames).includes(key) ? (key as Page) : 'dashboard';
 }
@@ -193,11 +194,6 @@ export default function App() {
   const storageBlocked = useRef(!!initial.error);
   const [tabConflict, setTabConflict] = useState(false);
   const notify = (message: string) => setToast(message);
-  useEffect(() => {
-    void initializeSharedAuth().catch((e) =>
-      setToast(e instanceof Error ? e.message : '로그인을 확인해 주세요.'),
-    );
-  }, []);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(''), 4500);

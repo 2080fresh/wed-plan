@@ -1,24 +1,12 @@
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { Cloud, Copy, Download, Link, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
+import { readCloudConfig, deploymentCloudConfig, saveCloudConfig } from './cloud';
 import {
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type FormEvent,
-  type SetStateAction,
-} from 'react';
-import { Cloud, Copy, Download, LogOut, RefreshCw, ShieldCheck, Upload, Users } from 'lucide-react';
-import {
-  createCloud,
-  deploymentCloudConfig,
-  clearCloudConfig,
-  readCloudConfig,
-  saveCloudConfig,
-  validateCloudConfig,
-  type CloudConfig,
-  type CloudStore,
-  type Workspace,
-  type WorkspaceSummary,
-} from './cloud';
+  LinkCloud,
+  parseConnectionToken,
+  formatConnectionLink,
+  type LinkWorkspace,
+} from './linkCloud';
 import { download, today, type Plan } from './model';
 import { Button, Field } from './ui';
 
@@ -29,85 +17,31 @@ type Props = {
   notify: (message: string) => void;
   confirm: Dispatch<SetStateAction<Confirmation>>;
 };
-type Binding = {
-  url: string;
-  userId: string;
-  workspaceId: string;
-  revision: number;
-  ownerId: string;
-  updatedAt: string;
-};
-type SignedInUser = { id: string; email?: string };
-const BINDING_KEY = 'owol-cloud-tab-binding-v1';
-let sharedCloud: CloudStore | null = null;
-let unsubscribeSharedAuth: (() => void) | null = null;
-// A revision is valid only for the current page lifetime, whose in-memory plan
-// is known. Reloading may recover an older localStorage plan after a write error.
-const activeBindings = new Map<string, Binding>();
-const bindingKey = (url: string, userId: string) => JSON.stringify([url, userId]);
-function forgetProjectBindings(url: string) {
-  for (const [key, value] of activeBindings) if (value.url === url) activeBindings.delete(key);
-}
-function clearRememberedSpace() {
+type Binding = { token: string; workspace: LinkWorkspace; url: string };
+const CONNECTION_KEY = 'owol-link-connection-v1';
+let activeBinding: Binding | null = null;
+let pendingToken = '';
+let pendingError = '';
+
+// Fragments stay off host requests. Remove the capability before app navigation.
+export function receiveSharedLink(): boolean {
+  if (!window.location.hash.startsWith('#connect=')) return false;
   try {
-    sessionStorage.removeItem(BINDING_KEY);
+    pendingToken = parseConnectionToken(window.location.href);
+    pendingError = '';
   } catch {
-    /* Memory binding still clears. */
+    pendingToken = '';
+    pendingError = '공유 링크를 확인해 주세요. 전달받은 링크 전체를 다시 열어 주세요.';
   }
+  window.history.replaceState(null, '', window.location.pathname + '#settings');
+  window.dispatchEvent(new Event('owol-shared-link'));
+  return true;
 }
 
-function getSharedCloud(config: CloudConfig): CloudStore {
-  if (
-    !sharedCloud ||
-    sharedCloud.config.url !== config.url ||
-    sharedCloud.config.key !== config.key
-  ) {
-    unsubscribeSharedAuth?.();
-    sharedCloud?.dispose();
-    sharedCloud = createCloud(config);
-    const {
-      data: { subscription },
-    } = sharedCloud.auth.onAuthStateChange((event) => {
-      // Also clear bindings when another tab signs out while Settings is closed.
-      if (event === 'SIGNED_OUT') {
-        forgetProjectBindings(config.url);
-        clearRememberedSpace();
-      }
-    });
-    unsubscribeSharedAuth = () => subscription.unsubscribe();
-  }
-  return sharedCloud;
-}
-
-/** Call once from App: auth callbacks must work even before Settings is mounted. */
-export async function initializeSharedAuth(): Promise<void> {
-  const config = readCloudConfig();
-  if (!config) return;
-  const isCallback = /(?:^#|&)(access_token|error|error_description)=/.test(window.location.hash);
-  const { error } = await getSharedCloud(config).auth.getSession();
-  if (isCallback) {
-    // The SDK consumes successful auth fragments. Also remove rejected/expired tokens.
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${window.location.search}#settings`,
-    );
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  }
-  if (error) throw error;
-}
-
-function readRememberedSpace(url: string, userId: string): string {
+function rememberedToken(url: string): string {
   try {
-    const value: Pick<Binding, 'url' | 'userId' | 'workspaceId'> | null = JSON.parse(
-      sessionStorage.getItem(BINDING_KEY) || 'null',
-    );
-    return value &&
-      value.url === url &&
-      value.userId === userId &&
-      typeof value.workspaceId === 'string'
-      ? value.workspaceId
-      : '';
+    const value = JSON.parse(localStorage.getItem(CONNECTION_KEY) || 'null');
+    return value?.url === url ? parseConnectionToken(value.token) : '';
   } catch {
     return '';
   }
@@ -115,230 +49,177 @@ function readRememberedSpace(url: string, userId: string): string {
 
 export function SharedSettings({ plan, onReplace, notify, confirm }: Props) {
   const [config, setConfig] = useState(readCloudConfig);
-  const [url, setUrl] = useState(config?.url || deploymentCloudConfig?.url || '');
-  const [key, setKey] = useState(config?.key || deploymentCloudConfig?.key || '');
-  const [cloud, setCloud] = useState<CloudStore | null>(() =>
-    config ? getSharedCloud(config) : null,
+  const [cloud, setCloud] = useState(() => (config ? new LinkCloud(config) : null));
+  const [token, setToken] = useState(() => (config ? rememberedToken(config.url) : ''));
+  const [input, setInput] = useState(pendingToken);
+  const [candidate, setCandidate] = useState<{ token: string; workspace: LinkWorkspace } | null>(
+    null,
   );
-  const [user, setUser] = useState<SignedInUser | null>(null);
-  const [authReady, setAuthReady] = useState(!cloud);
-  const [email, setEmail] = useState('');
-  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
-  const [selected, setSelected] = useState('');
-  const [binding, setBinding] = useState<Binding | null>(null);
-  const [joinCode, setJoinCode] = useState('');
-  const [invite, setInvite] = useState('');
-  const [error, setError] = useState('');
+  const [binding, setBinding] = useState(() =>
+    activeBinding?.url === config?.url && activeBinding?.token === token ? activeBinding : null,
+  );
+  const [error, setError] = useState(pendingError);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState('');
+  const [linkRequest, setLinkRequest] = useState(0);
   const busyRef = useRef(false);
   const mounted = useRef(true);
+  const connectionEpoch = useRef(0);
   const planRef = useRef(plan);
-  const userRef = useRef(user);
-  const inviteRef = useRef<HTMLTextAreaElement>(null);
   planRef.current = plan;
-  userRef.current = user;
+
   useEffect(() => {
     mounted.current = true;
+    const incoming = () => {
+      connectionEpoch.current++;
+      setLinkRequest((value) => value + 1);
+    };
+    window.addEventListener('owol-shared-link', incoming);
+    const changed = (event: StorageEvent) => {
+      if (event.key !== CONNECTION_KEY && event.key !== null) return;
+      connectionEpoch.current++;
+      activeBinding = null;
+      setBinding(null);
+      setCandidate(null);
+      setToken(config ? rememberedToken(config.url) : '');
+      setMessage('다른 탭에서 연결이 바뀌었어요. 공동 기록을 다시 가져와 주세요.');
+    };
+    window.addEventListener('storage', changed);
     return () => {
       mounted.current = false;
+      window.removeEventListener('storage', changed);
+      window.removeEventListener('owol-shared-link', incoming);
     };
-  }, []);
+  }, [config]);
 
-  function fail(cause: unknown) {
-    const text = cause instanceof Error ? cause.message : '연결을 확인한 뒤 다시 시도해 주세요.';
-    if (mounted.current) {
-      setError(text);
-      notify(text);
-    }
-  }
   async function run(label: string, action: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(label);
     setError('');
-    setMessage('');
     try {
       await action();
     } catch (cause) {
-      fail(cause);
+      if (mounted.current) {
+        const text =
+          cause instanceof Error ? cause.message : '연결을 확인한 뒤 다시 시도해 주세요.';
+        setError(text);
+        notify(text);
+      }
     } finally {
       busyRef.current = false;
       if (mounted.current) setBusy('');
     }
   }
   function say(text: string) {
-    if (mounted.current) {
-      setMessage(text);
-      notify(text);
-    }
+    setMessage(text);
+    notify(text);
   }
-
-  useEffect(() => {
-    if (!cloud) {
-      setUser(null);
-      setAuthReady(true);
-      return;
-    }
-    let active = true;
-    setAuthReady(false);
-    const {
-      data: { subscription },
-    } = cloud.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        forgetProjectBindings(cloud.config.url);
-        clearRememberedSpace();
-      }
-      if (active) {
-        setUser(session?.user || null);
-        setAuthReady(true);
-      }
-    });
-    void cloud.auth.getSession().then(({ data, error: authError }) => {
-      if (!active) return;
-      if (authError) setError(authError.message);
-      setUser(data.session?.user || null);
-      setAuthReady(true);
-    });
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [cloud]);
-
-  useEffect(() => {
-    setWorkspaces([]);
-    setInvite('');
-    if (!cloud || !user?.id) {
-      setBinding(null);
-      setSelected('');
-      return;
-    }
-    const remembered = activeBindings.get(bindingKey(cloud.config.url, user.id)) || null;
-    setBinding(remembered);
-    setSelected(remembered?.workspaceId || readRememberedSpace(cloud.config.url, user.id));
-    let active = true;
-    let refreshing = false;
-    const refresh = async () => {
-      if (refreshing || document.visibilityState === 'hidden') return;
-      refreshing = true;
-      try {
-        const rows = await cloud.listWorkspaces();
-        if (active) {
-          setWorkspaces(rows);
-          setSelected((value) =>
-            value && rows.some((row) => row.id === value) ? value : rows[0]?.id || '',
-          );
-          // Deliberately do not copy any server revision into the local binding.
-        }
-      } catch (cause) {
-        if (active)
-          setError(
-            cause instanceof Error ? cause.message : '공동 공간 목록을 확인하지 못했습니다.',
-          );
-      } finally {
-        refreshing = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, 30000);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void refresh();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      active = false;
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [cloud, user?.id]);
-
-  function bind(workspace: Workspace, signedInUser: SignedInUser) {
-    if (!cloud) return;
-    const next: Binding = {
-      url: cloud.config.url,
-      userId: signedInUser.id,
-      workspaceId: workspace.id,
-      ownerId: workspace.ownerId,
-      revision: workspace.revision,
-      updatedAt: workspace.updatedAt,
-    };
-    // Navigation inside the app preserves this binding; a full reload requires
-    // an explicit load. Persist only the selected space, never a usable revision.
-    activeBindings.set(bindingKey(next.url, next.userId), next);
+  function isCurrentConnection(epoch: number) {
+    return mounted.current && connectionEpoch.current === epoch;
+  }
+  function acceptConfirmation(epoch: number) {
+    confirm(null);
+    if (isCurrentConnection(epoch)) return true;
+    if (mounted.current) say('연결이 바뀌었어요. 현재 연결에서 작업을 다시 선택해 주세요.');
+    return false;
+  }
+  function bind(nextToken: string, workspace: LinkWorkspace) {
+    if (!config) return;
+    activeBinding = { token: nextToken, workspace, url: config.url };
+    setBinding(activeBinding);
+    setToken(nextToken);
+    setCandidate(null);
+    setInput('');
     try {
-      sessionStorage.setItem(
-        BINDING_KEY,
-        JSON.stringify({ url: next.url, userId: next.userId, workspaceId: next.workspaceId }),
-      );
+      localStorage.setItem(CONNECTION_KEY, JSON.stringify({ url: config.url, token: nextToken }));
     } catch {
-      setError(
-        '이 탭의 연결 정보를 기억하지 못했습니다. 새로고침 후 공동 내용을 다시 가져와 주세요.',
-      );
+      setError('이 기기에 연결을 기억하지 못했어요. 공유 링크를 따로 보관해 주세요.');
     }
-    setBinding(next);
-    setSelected(workspace.id);
-    setInvite('');
-    setWorkspaces((rows) => [
-      {
-        id: workspace.id,
-        ownerId: workspace.ownerId,
-        revision: workspace.revision,
-        updatedAt: workspace.updatedAt,
-      },
-      ...rows.filter((row) => row.id !== workspace.id),
-    ]);
   }
-  function replaceWith(workspace: Workspace, signedInUser: SignedInUser) {
-    if (!mounted.current || userRef.current?.id !== signedInUser.id) return;
-    download(JSON.stringify(planRef.current, null, 2), `오월-공유가져오기전-백업-${today()}.json`);
-    onReplace(workspace.plan);
-    // Advance the binding only if the parent's replacement callback accepted it.
-    bind(workspace, signedInUser);
-    say('현재 내용을 백업하고 공동 공간의 최신 내용을 가져왔어요.');
+  async function inspect(value: string) {
+    if (!cloud) return;
+    const epoch = connectionEpoch.current;
+    const nextToken = parseConnectionToken(value);
+    const workspace = await cloud.load(nextToken);
+    if (isCurrentConnection(epoch)) {
+      setCandidate({ token: nextToken, workspace });
+      setInput('');
+      say('공동 공간을 찾았어요. 아래에서 가져올 기록을 선택해 주세요.');
+    }
   }
-  function askToLoad() {
-    if (!cloud || !user || !selected) return;
-    const target = selected,
-      signedInUser = user;
+  useEffect(() => {
+    if (pendingError) {
+      setError(pendingError);
+      pendingError = '';
+    }
+    if (!pendingToken || !cloud || busyRef.current) return;
+    const incoming = pendingToken;
+    pendingToken = '';
+    pendingError = '';
+    connectionEpoch.current++;
+    activeBinding = null;
+    setBinding(null);
+    setCandidate(null);
+    void run('공동 공간을 확인하는 중…', () => inspect(incoming));
+  }, [cloud, linkRequest, busy]);
+
+  function askLoad(nextToken: string) {
+    if (!cloud) return;
+    const epoch = connectionEpoch.current;
     confirm({
-      title: '공동 공간의 내용을 가져올까요?',
-      body: '현재 기기의 기록을 JSON 백업으로 내려받은 뒤 공동 공간의 최신 기록으로 바꿉니다. 아직 공동 저장하지 않은 수정은 백업 파일에 남습니다.',
+      title: '최신 공동 기록을 가져올까요?',
+      body: '이 기기의 기록을 JSON 백업으로 내려받은 뒤, 두 분이 공유하는 최신 기록으로 바꿉니다.',
       action: () => {
-        confirm(null);
-        void run('공동 내용을 가져오는 중…', async () =>
-          replaceWith(await cloud.loadWorkspace(target), signedInUser),
-        );
-      },
-    });
-  }
-  function askToJoin(event: FormEvent) {
-    event.preventDefault();
-    if (!cloud || !user || !joinCode.trim()) return;
-    const token = joinCode,
-      signedInUser = user;
-    confirm({
-      title: '초대받은 준비 공간에 참여할까요?',
-      body: '참여하면 현재 기기의 기록을 JSON으로 백업한 뒤 상대방의 준비 내용을 가져옵니다.',
-      action: () => {
-        confirm(null);
-        void run('준비 공간에 참여하는 중…', async () => {
-          const workspace = await cloud.joinWorkspace(token);
-          replaceWith(workspace, signedInUser);
-          setJoinCode('');
+        if (!acceptConfirmation(epoch)) return;
+        void run('최신 기록을 가져오는 중…', async () => {
+          const before = planRef.current;
+          const workspace = await cloud.load(nextToken);
+          if (!isCurrentConnection(epoch)) return;
+          if (planRef.current !== before)
+            throw new Error('가져오는 동안 기록이 수정됐어요. 다시 가져와 주세요.');
+          download(JSON.stringify(before, null, 2), '오월-가져오기전-백업-' + today() + '.json');
+          onReplace(workspace.plan);
+          bind(nextToken, workspace);
+          say('최신 공동 기록을 가져왔어요. 편집 후 공동 공간에 저장해 주세요.');
         });
       },
     });
   }
-  const remote = binding ? workspaces.find((row) => row.id === binding.workspaceId) : undefined;
-  const newer =
-    remote && binding && binding.workspaceId === selected && remote.revision > binding.revision;
-  const canSave = !!cloud && !!user && !!binding && binding.workspaceId === selected;
-  const canInvite = canSave && binding?.ownerId === user?.id;
+  function startWithLocal() {
+    if (!cloud || !candidate || candidate.workspace.revision !== 1) return;
+    const target = candidate;
+    const epoch = connectionEpoch.current;
+    confirm({
+      title: '이 기기의 기록으로 공동 준비를 시작할까요?',
+      body: '현재 작성한 모든 기록을 공동 공간에 저장합니다. 다른 기기에서는 같은 공유 링크를 열어 가져올 수 있어요.',
+      action: () => {
+        if (!acceptConfirmation(epoch)) return;
+        void run('처음 공동 기록을 저장하는 중…', async () => {
+          const workspace = await cloud.save(
+            target.token,
+            planRef.current,
+            target.workspace.revision,
+          );
+          if (!isCurrentConnection(epoch)) return;
+          bind(target.token, workspace);
+          say('공동 준비를 시작했어요. 공유 링크를 상대방에게 전달해 주세요.');
+        });
+      },
+    });
+  }
+  async function copyLink() {
+    if (!token) return;
+    const link = formatConnectionLink(token);
+    try {
+      await navigator.clipboard.writeText(link);
+      say('공유 링크를 복사했어요. 두 분의 기기에서만 열어 주세요.');
+    } catch {
+      download(link, '오월-비공개-공유링크.txt', 'text/plain');
+      say('공유 링크를 파일로 내려받았어요.');
+    }
+  }
   const locked = !!busy;
-
   return (
     <section className="panel settings-panel" aria-labelledby="shared-settings-title">
       <div className="section-head">
@@ -346,395 +227,181 @@ export function SharedSettings({ plan, onReplace, notify, confirm }: Props) {
           <h2 id="shared-settings-title">
             <Cloud size={20} /> 함께 쓰는 준비 공간
           </h2>
-          <p>각자의 휴대폰과 PC에서 같은 계획을 이어서 준비해요.</p>
+          <p>로그인 없이, 공유 링크 하나로 함께 준비해요.</p>
         </div>
         <span className="badge purple">
-          {!cloud
-            ? '기기 저장 사용 중'
-            : !authReady
-              ? '로그인 확인 중'
-              : user
-                ? '로그인됨'
-                : '로그인 필요'}
+          {binding ? '공동 공간 연결됨' : token ? '연결 기억됨' : '기기 저장 사용 중'}
         </span>
       </div>
       <p className="help-text">
-        이 기기의 편집은 자동 저장됩니다. 두 분이 공유할 때는 최신 내용을 가져온 뒤 편집하고, ‘공동
-        공간에 저장’을 눌러 주세요.
-      </p>
-      <p className="help-text">
-        <a
-          href="https://github.com/2080fresh/wed-plan/blob/main/docs/SHARED-SETUP.md"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          처음 연결하기 · Supabase 설정 안내 ↗
-        </a>
+        기기에는 자동 저장됩니다. 편집을 시작할 때 최신 공동 기록을 가져오고, 마치면 ‘공동 공간에
+        저장’을 눌러 주세요.
       </p>
       {error && (
         <div className="alert error" role="alert">
           {error}
         </div>
       )}
-      {message && (
+      {(busy || message) && (
         <p className="help-text" role="status">
-          {message}
+          {busy || message}
         </p>
       )}
-      {busy && (
-        <p className="help-text" role="status">
-          {busy}
-        </p>
+      {!cloud && (
+        <div className="alert">
+          <p>공동 공간의 기본 연결을 사용해 주세요.</p>
+          <Button
+            disabled={locked || !deploymentCloudConfig}
+            onClick={() => {
+              if (!deploymentCloudConfig) return;
+              const defaults = deploymentCloudConfig;
+              void run('공동 공간을 연결하는 중…', async () => {
+                const next = saveCloudConfig(defaults);
+                connectionEpoch.current++;
+                setConfig(next);
+                setCloud(new LinkCloud(next));
+                setToken(rememberedToken(next.url));
+                setBinding(null);
+                activeBinding = null;
+              });
+            }}
+          >
+            기본 연결 사용
+          </Button>
+        </div>
       )}
-      <details open={!cloud}>
-        <summary>공유 저장소 연결 설정 {cloud ? '· 프로젝트 설정됨' : ''}</summary>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run('공유 저장소를 연결하는 중…', async () => {
-              // Validate before replacing a working configuration or signing out.
-              const next = validateCloudConfig({ url, key });
-              if (cloud && (cloud.config.url !== next.url || cloud.config.key !== next.key)) {
-                const { error: logoutError } = await cloud.auth.signOut({ scope: 'local' });
-                if (logoutError) throw logoutError;
-                forgetProjectBindings(cloud.config.url);
-                clearRememberedSpace();
-              }
-              saveCloudConfig(next);
-              const store = getSharedCloud(next);
-              setConfig(next);
-              setUrl(next.url);
-              setKey(next.key);
-              setCloud(store);
-              setBinding(null);
-              say('공유 저장소 설정을 저장했어요. 이메일로 로그인해 주세요.');
-            });
-          }}
-        >
-          <div className="form-grid">
-            <Field label="Supabase 프로젝트 URL">
-              <input
-                type="url"
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://프로젝트.supabase.co"
-                required
-                disabled={locked}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </Field>
-            <Field label="Publishable key (공개 키)" hint="sb_publishable_… 또는 기존 anon 키">
-              <input
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                placeholder="sb_publishable_…"
-                required
-                disabled={locked}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </Field>
-          </div>
-          <p className="help-text">
-            <ShieldCheck size={14} />{' '}
-            {deploymentCloudConfig
-              ? '공동 프로젝트가 미리 설정되어 있어요. 각자의 이메일로 로그인해 주세요.'
-              : '두 분이 같은 URL과 공개 키를 입력하면 됩니다.'}{' '}
-            로그인한 참여자만 준비 내용을 읽을 수 있어요.
-          </p>
-          <div className="form-footer">
-            {cloud && (
-              <Button
-                variant="ghost"
-                disabled={locked}
-                onClick={() => {
-                  void run('연결을 해제하는 중…', async () => {
-                    const { error: logoutError } = await cloud.auth.signOut({ scope: 'local' });
-                    if (logoutError) throw logoutError;
-                    clearCloudConfig();
-                    forgetProjectBindings(cloud.config.url);
-                    clearRememberedSpace();
-                    unsubscribeSharedAuth?.();
-                    unsubscribeSharedAuth = null;
-                    cloud.dispose();
-                    sharedCloud = null;
-                    setCloud(null);
-                    setConfig(null);
-                    setBinding(null);
-                    setUser(null);
-                    say('공유 연결을 해제했어요. 이 기기의 기록은 계속 사용할 수 있어요.');
-                  });
-                }}
-              >
-                연결 해제
-              </Button>
-            )}
-            <Button type="submit" variant="secondary" disabled={locked}>
-              연결 설정 저장
-            </Button>
-          </div>
-        </form>
-      </details>
-      {cloud && authReady && !user && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run('로그인 메일을 보내는 중…', async () => {
-              await cloud.sendMagicLink(email);
-              say('로그인 링크를 보냈어요. 메일의 링크를 지금 사용하는 브라우저에서 열어 주세요.');
-            });
-          }}
-        >
-          <div className="form-grid">
-            <Field label="내 이메일" full>
-              <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@example.com"
-                required
-                disabled={locked}
-              />
-            </Field>
-          </div>
-          <div className="form-footer">
-            <Button type="submit" disabled={locked}>
-              이메일로 로그인 링크 받기
-            </Button>
-          </div>
-          <p className="help-text">
-            두 분은 각자의 이메일로 로그인합니다. 메일이 오지 않으면 스팸함과 설정 안내의 SMTP
-            항목을 확인해 주세요.
-          </p>
-        </form>
-      )}
-      {cloud && user && (
+      {cloud && (
         <>
-          <div className="section-head">
-            <p>
-              <ShieldCheck size={16} /> {user.email || '이메일 계정으로 로그인됨'}
-            </p>
-            <Button
-              variant="ghost"
-              disabled={locked}
-              onClick={() => {
-                void run('로그아웃하는 중…', async () => {
-                  const { error: logoutError } = await cloud.auth.signOut({ scope: 'local' });
-                  if (logoutError) throw logoutError;
-                  forgetProjectBindings(cloud.config.url);
-                  clearRememberedSpace();
-                  setBinding(null);
-                  say('이 기기에서 로그아웃했어요.');
-                });
-              }}
-            >
-              <LogOut size={15} /> 로그아웃
-            </Button>
-          </div>
-          {workspaces.length > 0 && (
+          {token && (
             <>
-              <Field label="나의 공동 준비 공간">
-                <select
-                  value={selected}
-                  disabled={locked}
-                  onChange={(event) => {
-                    setSelected(event.target.value);
-                    setInvite('');
-                  }}
-                >
-                  {workspaces.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.ownerId === user.id ? '내가 만든' : '함께 참여한'} 준비 공간 ·{' '}
-                      {row.id.slice(0, 8)} · 버전 {row.revision}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              {binding && selected === binding.workspaceId ? (
-                <p className="help-text">
-                  이 탭에서 불러오거나 저장한 버전: {binding.revision} · 마지막 공유 저장:{' '}
-                  {new Intl.DateTimeFormat('ko-KR', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                    timeZone: 'Asia/Seoul',
-                  }).format(new Date(binding.updatedAt))}
-                </p>
-              ) : (
-                <p className="help-text">
-                  먼저 공동 내용을 가져오면 이 탭에서 편집하고 저장할 수 있어요. 새로고침 후에는
-                  다시 가져와 주세요. 현재 수정 내용은 가져오기 전에 자동 백업합니다.
-                </p>
-              )}
-              {newer && (
-                <div className="alert" role="status">
-                  공동 공간에 더 새로운 내용이 있어요 (버전 {remote.revision}). 내 수정이 있다면
-                  백업한 뒤 최신 내용을 가져와 주세요.
-                </div>
-              )}
               <div className="form-footer">
-                <Button
-                  variant="ghost"
-                  disabled={locked}
-                  onClick={() => {
-                    void run('공동 공간 목록을 확인하는 중…', async () => {
-                      setWorkspaces(await cloud.listWorkspaces());
-                      say('공동 공간의 저장 상태를 확인했어요.');
-                    });
-                  }}
-                >
-                  <RefreshCw size={15} /> 상태 확인
-                </Button>
-                <Button variant="secondary" disabled={locked || !selected} onClick={askToLoad}>
-                  <Download size={16} /> 최신 내용 가져오기
+                <Button variant="secondary" disabled={locked} onClick={() => askLoad(token)}>
+                  <Download size={16} /> 최신 공동 기록 가져오기
                 </Button>
                 <Button
-                  disabled={locked || !canSave || !!newer}
+                  disabled={locked || !binding}
                   onClick={() => {
                     if (!binding) return;
-                    const localSnapshot = planRef.current;
+                    const target = binding;
+                    const epoch = connectionEpoch.current;
                     void run('공동 공간에 저장하는 중…', async () => {
-                      const workspace = await cloud.saveWorkspace(
-                        binding.workspaceId,
-                        localSnapshot,
-                        binding.revision,
+                      const workspace = await cloud.save(
+                        target.token,
+                        planRef.current,
+                        target.workspace.revision,
                       );
-                      if (!mounted.current || userRef.current?.id !== user.id) return;
-                      bind(workspace, user);
-                      // Keep any edits made while the request was in flight; never replace here.
-                      say(
-                        planRef.current === localSnapshot
-                          ? '공동 공간에 저장했어요. 상대방이 최신 내용을 가져올 수 있어요.'
-                          : '공동 저장을 마쳤어요. 저장 중 추가한 수정은 한 번 더 공동 저장해 주세요.',
-                      );
+                      if (!isCurrentConnection(epoch)) return;
+                      bind(target.token, workspace);
+                      say('공동 공간에 저장했어요. 다른 기기에서 최신 내용을 가져올 수 있어요.');
                     });
                   }}
                 >
                   <Upload size={16} /> 공동 공간에 저장
                 </Button>
               </div>
-              {canInvite && (
-                <div>
-                  <div className="form-footer">
-                    <Button
-                      variant="secondary"
-                      disabled={locked}
-                      onClick={() => {
-                        if (!binding) return;
-                        void run('초대 코드를 확인하는 중…', async () => {
-                          setInvite(await cloud.getInviteToken(binding.workspaceId));
-                          say('상대방에게 초대 코드를 전달해 주세요. 7일 동안 유효해요.');
+              <p className="help-text">
+                {binding
+                  ? '마지막 공동 저장: ' +
+                    new Date(binding.workspace.updatedAt).toLocaleString('ko-KR')
+                  : '새로 연 창에서는 최신 공동 기록을 가져온 뒤 저장할 수 있어요. 기기의 수정은 가져오기 전에 자동 백업됩니다.'}
+              </p>
+              <div className="form-footer">
+                <Button
+                  variant="ghost"
+                  disabled={locked}
+                  onClick={() => void run('공유 링크를 복사하는 중…', copyLink)}
+                >
+                  <Copy size={16} /> 다른 기기 연결 링크 복사
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={locked}
+                  onClick={() => {
+                    const epoch = connectionEpoch.current;
+                    confirm({
+                      title: '이 기기의 공동 연결을 해제할까요?',
+                      body: '기록은 그대로 남고, 이 기기에서 기억한 공유 링크만 지웁니다. 다시 연결하려면 공유 링크가 필요해요.',
+                      action: () => {
+                        if (!acceptConfirmation(epoch)) return;
+                        void run('연결을 해제하는 중…', async () => {
+                          localStorage.removeItem(CONNECTION_KEY);
+                          connectionEpoch.current++;
+                          pendingToken = '';
+                          pendingError = '';
+                          activeBinding = null;
+                          setBinding(null);
+                          setToken('');
+                          setCandidate(null);
+                          setInput('');
+                          say('이 기기의 연결을 해제했어요.');
                         });
-                      }}
-                    >
-                      <Users size={16} /> 상대방 초대 코드
-                    </Button>
-                    {invite && (
-                      <Button
-                        variant="ghost"
-                        disabled={locked}
-                        onClick={() => {
-                          if (!binding) return;
-                          void run('새 초대 코드를 만드는 중…', async () => {
-                            setInvite(await cloud.rotateInviteToken(binding.workspaceId));
-                            say('새 코드를 만들었어요. 이전 코드는 사용할 수 없어요.');
-                          });
-                        }}
-                      >
-                        코드 재발급
-                      </Button>
-                    )}
-                  </div>
-                  {invite && (
-                    <>
-                      <Field
-                        label="상대방에게 전달할 초대 코드"
-                        hint="한 번 참여하면 코드는 소모됩니다."
-                      >
-                        <textarea
-                          ref={inviteRef}
-                          readOnly
-                          value={invite}
-                          rows={2}
-                          spellCheck={false}
-                        />
-                      </Field>
-                      <Button
-                        variant="secondary"
-                        disabled={locked}
-                        onClick={() => {
-                          void run('초대 코드를 복사하는 중…', async () => {
-                            try {
-                              await navigator.clipboard.writeText(invite);
-                              say('초대 코드를 복사했어요.');
-                            } catch {
-                              inviteRef.current?.select();
-                              throw new Error('선택된 초대 코드를 직접 복사해 주세요.');
-                            }
-                          });
-                        }}
-                      >
-                        <Copy size={15} /> 초대 코드 복사
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
+                      },
+                    });
+                  }}
+                >
+                  이 기기 연결 해제
+                </Button>
+              </div>
             </>
           )}
-          <div className="form-footer">
-            <Button
-              variant="secondary"
-              disabled={locked}
-              onClick={() => {
-                confirm({
-                  title: '새 공동 준비 공간을 만들까요?',
-                  body: '현재 기기의 모든 준비 내용으로 새 공간을 만듭니다. 상대방이 이미 공간을 만들었다면 초대 코드로 참여해 주세요.',
-                  action: () => {
-                    confirm(null);
-                    const snapshot = planRef.current;
-                    void run('공동 준비 공간을 만드는 중…', async () => {
-                      const workspace = await cloud.createWorkspace(snapshot);
-                      if (!mounted.current || userRef.current?.id !== user.id) return;
-                      bind(workspace, user);
-                      say('공동 준비 공간을 만들었어요. 초대 코드로 상대방을 초대해 주세요.');
-                    });
-                  },
-                });
+          {candidate && (
+            <div className="alert">
+              <strong>함께 사용할 준비 공간을 찾았어요</strong>
+              <p>
+                공동 기록: 일정 {candidate.workspace.plan.tasks.length}개 · 예산 항목{' '}
+                {candidate.workspace.plan.expenses.length}개
+              </p>
+              <div className="form-footer">
+                <Button
+                  variant="secondary"
+                  disabled={locked}
+                  onClick={() => askLoad(candidate.token)}
+                >
+                  <RefreshCw size={16} /> 공동 기록 가져오기
+                </Button>
+                {candidate.workspace.revision === 1 && (
+                  <Button disabled={locked} onClick={startWithLocal}>
+                    이 기기의 기록으로 공동 준비 시작
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          <details open={!token && !candidate}>
+            <summary>
+              <Link size={15} /> {token ? '다른 공유 링크 연결' : '공유 링크로 연결하기'}
+            </summary>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void run('공동 공간을 확인하는 중…', () => inspect(input));
               }}
             >
-              <Cloud size={16} /> 현재 기록으로 새 공동 공간 만들기
-            </Button>
-          </div>
-          <form onSubmit={askToJoin}>
-            <div className="form-grid">
-              <Field label="상대방에게 받은 초대 코드" full>
+              <Field label="전달받은 공유 링크" hint="처음 한 번만 연결하면 이 기기에서 기억해요.">
                 <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value)}
-                  pattern="[a-fA-F0-9]{64}"
-                  maxLength={64}
+                  type="password"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  placeholder="공유 링크 전체를 붙여 넣으세요"
                   required
                   autoComplete="off"
                   spellCheck={false}
                   disabled={locked}
-                  placeholder="64자리 초대 코드를 붙여 넣으세요"
                 />
               </Field>
-            </div>
-            <div className="form-footer">
-              <Button type="submit" variant="secondary" disabled={locked || !joinCode.trim()}>
-                <Users size={16} /> 초대받은 공간 참여하기
-              </Button>
-            </div>
-          </form>
-          <p className="help-text">
-            같은 버전을 동시에 수정하면 먼저 저장한 내용만 반영하고 충돌을 안내합니다. 공유 데이터는
-            자동으로 덮어쓰지 않으며, 설정 화면에서 30초마다 새 저장 여부를 확인합니다.
-          </p>
+              <div className="form-footer">
+                <Button type="submit" variant="secondary" disabled={locked || !input.trim()}>
+                  준비 공간 연결
+                </Button>
+              </div>
+            </form>
+          </details>
         </>
       )}
+      <p className="help-text">
+        <ShieldCheck size={14} /> 공유 링크를 가진 사람은 기록을 읽고 수정할 수 있어요. 두 분만
+        보관하고, 새 휴대폰이나 PC에서도 같은 링크를 열어 주세요.
+      </p>
     </section>
   );
 }

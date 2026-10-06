@@ -1,14 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CloudStore,
-  ConflictError,
   validateCloudConfig,
   readCloudConfig,
   saveCloudConfig,
   clearCloudConfig,
 } from '../src/cloud';
-import { createPlan } from '../src/model';
 
 const config = {
   url: 'https://test-project.supabase.co',
@@ -62,59 +59,5 @@ test('cloud configuration accepts public keys and rejects administrator keys and
     'https://project.supabase.co/?token=secret',
   ]) {
     assert.throws(() => validateCloudConfig({ ...config, url }));
-  }
-});
-
-test('stale shared save surfaces a conflict without retrying or mutating local edits', async () => {
-  const originalFetch = globalThis.fetch;
-  let requests = 0;
-  let sentBody: Record<string, unknown> | undefined;
-  globalThis.fetch = async (input, init) => {
-    requests++;
-    assert.match(String(input), /\/rest\/v1\/rpc\/owol_save_workspace$/);
-    sentBody = JSON.parse(String(init?.body));
-    return new Response(
-      JSON.stringify({
-        code: 'P0001',
-        message: 'OWOL_REVISION_CONFLICT',
-        details: null,
-        hint: null,
-      }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    );
-  };
-  const cloud = new CloudStore(config);
-  const plan = createPlan();
-  plan.profile.groom = '로컬 수정';
-  try {
-    await assert.rejects(cloud.saveWorkspace('workspace-id', plan, 3), ConflictError);
-    assert.equal(requests, 1);
-    assert.equal(sentBody?.p_expected_revision, 3);
-    assert.equal(plan.profile.groom, '로컬 수정');
-  } finally {
-    cloud.dispose();
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('malformed incoming cloud plans fail validation before entering the local plan', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(
-      JSON.stringify({
-        id: 'id',
-        owner_id: 'owner',
-        revision: 1,
-        updated_at: new Date().toISOString(),
-        plan: { version: 999 },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    );
-  const cloud = new CloudStore(config);
-  try {
-    await assert.rejects(cloud.loadWorkspace('id'), /지원하지 않는 백업 형식/);
-  } finally {
-    cloud.dispose();
-    globalThis.fetch = originalFetch;
   }
 });
