@@ -6,17 +6,17 @@ GitHub Pages는 화면을 배포하고, 로그인과 공유 데이터는 Supabas
 
 현재 배포에는 두 분의 Supabase 프로젝트가 기본 연결로 적용됩니다. 휴대폰마다 URL과 공개 키를 다시 입력할 필요 없이 **설정 → 함께 쓰는 준비 공간 → 내 이메일**에서 로그인하면 됩니다. 연결 해제를 선택한 기기는 연결 설정을 다시 저장해야 합니다.
 
-2026-10-06에 현재 프로젝트의 공동 저장 테이블·함수·접근 권한을 적용했습니다. Email 인증 활성화와 비로그인 데이터 접근 차단도 확인했습니다. 로그인 복귀 주소와 이메일 수신은 아래 절차로 확인하세요. 새 프로젝트로 이전하는 경우에는 SQL 설치부터 진행합니다.
+2026-10-06에 현재 프로젝트의 공동 저장 테이블·함수·접근 권한을 적용했습니다. Email 인증 활성화와 비로그인 데이터 접근 차단을 확인했으며 Site URL과 Redirect URLs도 배포 주소로 설정했습니다. **현재 Custom SMTP는 미설정 상태이므로, 프로젝트 팀 외의 이메일로 로그인하려면 발송 서비스를 연결해야 합니다.** 새 프로젝트로 이전하는 경우에는 SQL 설치부터 진행합니다.
 
 1. [두 분의 Supabase 프로젝트](https://supabase.com/dashboard/project/rciowepbcfbsbgoktowr)를 엽니다.
 2. 공동 저장 SQL은 현재 프로젝트에 적용되어 있습니다. 새 프로젝트를 연결할 때만 **SQL Editor**에서 저장소의 [`supabase/setup.sql`](../supabase/setup.sql) 전체를 실행합니다. 다시 실행해도 기존 계획은 삭제하지 않습니다.
 3. **Authentication → Providers / Sign In**에서 Email 로그인을 사용하도록 설정합니다. 두 분의 개별 이메일로 로그인합니다.
-4. **Authentication → URL Configuration**의 Site URL과 Redirect URLs에 `https://2080fresh.github.io/wed-plan/`을 등록합니다. 끝의 `/`까지 포함합니다. 로컬 확인을 한다면 실제 개발 서버 주소도 Redirect URLs에 별도로 추가합니다.
+4. 현재 **Authentication → URL Configuration**의 Site URL과 Redirect URLs에는 `https://2080fresh.github.io/wed-plan/`이 등록되어 있습니다. 배포 주소를 변경할 때는 끝의 `/`까지 포함해 두 항목을 수정합니다. 로컬 확인을 한다면 실제 개발 서버 주소도 Redirect URLs에 별도로 추가합니다.
 5. **Connect** 또는 **Settings → API Keys**에서 Project URL과 **Publishable key**를 복사합니다. URL은 `https://PROJECT_REF.supabase.co` 형식입니다. `sb_publishable_...` 공개 키를 권장하며 기존 `anon` 키도 지원합니다. **Secret key / service_role 키는 사용하지 않습니다.**
 6. 현재 사이트에는 GitHub Actions의 공개 설정값으로 URL과 공개 키가 기본 적용됩니다. 다른 프로젝트를 사용하려는 경우에만 플랫폼의 공유 설정에서 URL과 공개 키를 바꾸세요. 개인 설정은 현재 브라우저에만 저장됩니다.
 7. 이메일 로그인 링크를 요청하고 메일에서 링크를 엽니다. 각 기기에서는 해당 기기의 브라우저로 로그인을 진행합니다. 메일 앱의 내장 브라우저가 열렸다면 플랫폼을 사용할 Safari/Chrome 등 같은 브라우저에서 링크를 여세요.
 
-이메일은 Supabase의 발송 정책과 사용량 제한을 따릅니다. 기본 발송 서비스로 상대방 이메일에 메일이 가지 않으면 **Authentication → SMTP Settings**에 발송 서비스를 연결하세요. 기본 서비스는 프로젝트 팀 이메일 등 수신 대상을 제한할 수 있습니다. [Supabase SMTP 설정 안내](https://supabase.com/docs/guides/auth/auth-smtp)를 참고하세요.
+이메일은 Supabase의 발송 정책과 사용량 제한을 따릅니다. 기본 발송 서비스는 프로젝트 팀에 등록된 이메일만 허용하므로, 두 분의 일반 이메일로 사용하려면 **Authentication → Emails → SMTP Settings**에 발송 서비스를 연결하세요. 발송 서비스에서 제공하는 호스트·포트·사용자명·비밀번호와 발신 이메일을 관리자 화면에 입력합니다. 비밀번호나 API 키는 코드·백업 파일·채팅에 넣지 않습니다. [Supabase SMTP 설정 안내](https://supabase.com/docs/guides/auth/auth-smtp)를 참고하세요.
 
 ## 초대와 함께 편집
 
