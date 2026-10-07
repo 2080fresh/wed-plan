@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { CalendarPlus, MoreHorizontal, Plus, Undo2, X } from 'lucide-react';
 import {
   CASHFLOW_TYPES,
   cashflowDateLabel,
@@ -204,7 +205,7 @@ function EntryDetails({
       <div className="scf-dialog-heading">
         <h3 id="scf-dialog-title">{title}</h3>
         <button type="button" onClick={onClose} aria-label="상세 보기 닫기">
-          ×
+          <X size={19} aria-hidden="true" />
         </button>
       </div>
       <p>기록별 금액을 수정하세요. 날짜·상태·메모는 유지됩니다.</p>
@@ -240,6 +241,7 @@ function EntryDetails({
       <div className="scf-dialog-footer">
         {undo && (
           <button type="button" disabled={disabled} onClick={undo.action}>
+            <Undo2 size={15} aria-hidden="true" />
             {undo.label} 되돌리기
           </button>
         )}
@@ -375,35 +377,49 @@ export function SimpleCashflow({ plan, update, disabled = false }: Props) {
       <div className="scf-heading">
         <div>
           <h2 id="scf-title">신혼집 자금 계획</h2>
-          <p>금액을 입력하고 Enter를 누르거나 다른 셀로 이동하세요. 단위: 원</p>
+          <p>
+            금액을 입력하고 Enter를 누르거나 다른 셀로 이동하세요.{' '}
+            <span className="scf-unit">단위: 원</span>
+          </p>
         </div>
         <div className="scf-actions">
-          <button type="button" disabled={locked} onClick={() => setAdding((value) => !value)}>
-            + 항목
+          <button
+            className="scf-primary"
+            type="button"
+            disabled={locked}
+            onClick={() => setAdding((value) => !value)}
+          >
+            <Plus size={16} aria-hidden="true" />
+            항목 추가
           </button>
           <button
             type="button"
             disabled={locked || months.length >= 120}
             onClick={() => setExtraThrough(monthAt(monthIndex(months.at(-1)!.month) + 1))}
           >
-            + 다음 달
+            <CalendarPlus size={16} aria-hidden="true" />
+            다음 달 추가
           </button>
         </div>
       </div>
       <div className="scf-opening">
-        <span className="scf-opening-label">{monthLabel(data.openingMonth)} 시작 잔액</span>
-        <AmountInput
-          value={data.openingBalance}
-          label="시작 잔액 (원)"
-          signed
-          disabled={locked}
-          onCommit={(amount, before) =>
-            commit((latest) => updateCashflowOpeningBalance(latest, before ?? 0, amount))
-          }
-          onError={setMessage}
-        />
-        <span>원</span>
-        <small>첫 달 직전의 보유 자금</small>
+        <div className="scf-opening-copy">
+          <span className="scf-opening-label">{monthLabel(data.openingMonth)} 시작 잔액</span>
+          <small>첫 달 직전의 보유 자금</small>
+        </div>
+        <div className="scf-opening-amount">
+          <AmountInput
+            value={data.openingBalance}
+            label="시작 잔액 (원)"
+            signed
+            disabled={locked}
+            onCommit={(amount, before) =>
+              commit((latest) => updateCashflowOpeningBalance(latest, before ?? 0, amount))
+            }
+            onError={setMessage}
+          />
+          <span>원</span>
+        </div>
       </div>
       {sourceError && (
         <p className="scf-error" role="alert">
@@ -419,6 +435,7 @@ export function SimpleCashflow({ plan, update, disabled = false }: Props) {
         <div className="scf-undo" role="status">
           <span>{removed!.title} 기록을 지웠습니다.</span>
           <button type="button" disabled={locked} onClick={undo.action}>
+            <Undo2 size={15} aria-hidden="true" />
             되돌리기
           </button>
         </div>
@@ -445,8 +462,8 @@ export function SimpleCashflow({ plan, update, disabled = false }: Props) {
             aria-label="새 항목 이름"
             disabled={locked}
           />
-          <button type="submit" disabled={locked || !newTitle.trim()}>
-            행 추가
+          <button className="scf-primary" type="submit" disabled={locked || !newTitle.trim()}>
+            <Plus size={16} aria-hidden="true" />행 추가
           </button>
           <button
             type="button"
@@ -588,7 +605,7 @@ function CashflowGroup({
           (entry) => entry.type === type && entry.title === row.title,
         );
         return (
-          <tr key={row.key}>
+          <tr className="scf-data-row" key={row.key}>
             <th scope="row" className="scf-row-label">
               <div className="scf-row-title">
                 <RowNameInput
@@ -605,7 +622,7 @@ function CashflowGroup({
                     aria-label={`${row.title} 빈 행 취소`}
                     onClick={() => onDropDraft(row.key)}
                   >
-                    ×
+                    <X size={15} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -643,7 +660,7 @@ function CashflowGroup({
                           aria-label={`${row.title} ${monthLabel(month)} 기록 상세`}
                           onClick={() => onDetails(row, month)}
                         >
-                          ⋯
+                          <MoreHorizontal size={17} aria-hidden="true" />
                         </button>
                       )}
                     </div>

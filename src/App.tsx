@@ -7,6 +7,7 @@ import {
   Heart,
   Link2,
   LoaderCircle,
+  PencilLine,
   Table2,
   X,
 } from 'lucide-react';
@@ -93,7 +94,7 @@ export default function App() {
             ) : (
               <Cloud size={14} />
             )}
-            {labels[status] || '자동 저장'}
+            <span>{labels[status] || '자동 저장'}</span>
           </span>
           <button
             className="simple-icon"
@@ -102,17 +103,21 @@ export default function App() {
             title="공유와 백업"
           >
             <Link2 size={19} />
+            <span>공유</span>
           </button>
         </div>
       </header>
       <main className="simple-main">
         <div className="simple-heading">
           <div>
-            <h1>하나씩, 함께 준비해요.</h1>
-            <p>내용을 고치면 자동으로 저장되고 두 사람에게 함께 반영돼요.</p>
+            <p className="simple-eyebrow">두 사람이 함께 쓰는</p>
+            <h1>결혼 준비 노트</h1>
+            <p>준비할 일정과 자금 계획을 한곳에 모았어요.</p>
           </div>
           <label className="simple-wedding-date">
-            <span>예식일</span>
+            <span>
+              <CalendarDays size={16} /> 우리의 예식일
+            </span>
             <input
               type="date"
               aria-label="예식일"
@@ -162,20 +167,25 @@ export default function App() {
             {error}
           </div>
         )}
-        <nav className="simple-tabs" aria-label="준비 화면">
-          <button
-            aria-current={page === 'timeline' ? 'page' : undefined}
-            onClick={() => navigate('timeline')}
-          >
-            <CalendarDays size={18} /> 타임라인
-          </button>
-          <button
-            aria-current={page === 'cashflow' ? 'page' : undefined}
-            onClick={() => navigate('cashflow')}
-          >
-            <Table2 size={18} /> 신혼집 자금 계획
-          </button>
-        </nav>
+        <div className="simple-navigation">
+          <nav className="simple-tabs" aria-label="준비 화면">
+            <button
+              aria-current={page === 'timeline' ? 'page' : undefined}
+              onClick={() => navigate('timeline')}
+            >
+              <CalendarDays size={18} /> 타임라인
+            </button>
+            <button
+              aria-current={page === 'cashflow' ? 'page' : undefined}
+              onClick={() => navigate('cashflow')}
+            >
+              <Table2 size={18} /> 신혼집 자금 계획
+            </button>
+          </nav>
+          <span className="simple-edit-hint">
+            <PencilLine size={14} /> 칸을 누르면 바로 수정할 수 있어요
+          </span>
+        </div>
         <section
           className="simple-content"
           aria-label={page === 'timeline' ? '타임라인' : '신혼집 자금 계획'}
@@ -186,9 +196,7 @@ export default function App() {
             <SimpleCashflow plan={plan} update={update} disabled={disabled} />
           )}
         </section>
-        <footer className="simple-footer">
-          칸을 수정한 뒤 Enter를 누르거나 다른 칸으로 이동하면 저장돼요.
-        </footer>
+        <footer className="simple-footer">수정한 내용은 자동으로 저장됩니다.</footer>
       </main>
       {shareOpen && (
         <Modal title="다른 기기에서도 함께" onClose={() => setShareOpen(false)}>

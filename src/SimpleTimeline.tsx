@@ -280,7 +280,7 @@ export function SimpleTimeline({ plan, update, disabled = false }: Props) {
       <div className="st-heading">
         <div>
           <h2>준비 타임라인</h2>
-          <p>칸을 눌러 바로 수정하세요. Enter 또는 다른 칸으로 이동하면 저장돼요.</p>
+          <p>월별로 살펴보고, 필요한 내용을 바로 수정하세요.</p>
         </div>
         <button type="button" className="st-add" disabled={disabled} onClick={addTask}>
           <Plus size={17} />
@@ -306,7 +306,7 @@ export function SimpleTimeline({ plan, update, disabled = false }: Props) {
           미완료만
         </label>
         <span className="st-count">
-          {completed} / {plan.tasks.length} 완료
+          <strong>{completed}</strong> / {plan.tasks.length} 완료
         </span>
       </div>
       {removed && (
@@ -401,7 +401,9 @@ export function SimpleTimeline({ plan, update, disabled = false }: Props) {
                           }))
                         }
                       >
-                        {task.done && <Check size={14} />}
+                        <span className="st-check-box" aria-hidden="true">
+                          {task.done && <Check size={15} strokeWidth={2.5} />}
+                        </span>
                       </button>
                     </td>
                     <td className="st-title-cell">
@@ -425,6 +427,7 @@ export function SimpleTimeline({ plan, update, disabled = false }: Props) {
                     <td className="st-owner-cell">
                       <select
                         className="st-inline st-owner"
+                        data-owner={task.owner}
                         aria-label={`${task.title} 담당`}
                         disabled={disabled}
                         value={task.owner}
@@ -535,10 +538,7 @@ export function SimpleTimeline({ plan, update, disabled = false }: Props) {
           </div>
         )}
       </div>
-      <p className="st-footnote">
-        월만 정한 일정은 임의의 날짜로 바꾸지 않습니다. ‘예식 기준’ 일정은 결혼식 날짜에 맞춰
-        움직여요.
-      </p>
+      <p className="st-footnote">‘월’은 월 단위로, ‘예식 기준’은 예식일에 맞춰 표시돼요.</p>
     </section>
   );
 }

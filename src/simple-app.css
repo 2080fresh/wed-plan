@@ -1,37 +1,71 @@
 .simple-app {
+  --ui-ink: #283f36;
+  --ui-muted: #718077;
+  --ui-accent: #365f4e;
+  --ui-border: #e4e8e1;
+  --ui-soft: #f3f5ef;
+  --ui-radius: 16px;
+  --purple: var(--ui-accent);
+  --purple-deep: #284c3d;
+  --light-purple: #edf2e9;
   min-height: 100vh;
-  background: #f7f8fa;
-  color: #30333b;
+  background: #f6f5f1;
+  color: var(--ui-ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.simple-app ::selection {
+  background: #dfeadc;
+}
+.simple-app button,
+.simple-app a,
+.simple-app input,
+.simple-app select,
+.simple-app textarea {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.simple-app button:focus-visible,
+.simple-app a:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
 }
 .simple-topbar {
-  height: 70px;
-  padding: 0 max(24px, calc((100vw - 1440px) / 2));
+  min-height: 76px;
+  padding: 12px max(32px, calc((100vw - 1376px) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid #e7e8ed;
-  background: white;
+  border-bottom: 1px solid var(--ui-border);
+  background: #fffefa;
 }
 .simple-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #30333b;
+  gap: 12px;
+  color: var(--ui-ink);
   white-space: nowrap;
 }
+.simple-brand strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.45px;
+}
 .simple-brand > span {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 11px;
-  color: #7b65af;
-  background: #f0ecf7;
+  border-radius: 13px;
+  color: #fff;
+  background: var(--ui-accent);
 }
 .simple-top-actions {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   align-items: center;
 }
 .simple-sync {
@@ -39,86 +73,155 @@
   gap: 6px;
   align-items: center;
   font-size: 12px;
-  color: #607d6e;
+  color: #51705d;
 }
 .simple-sync.offline,
 .simple-sync.error {
   color: #986232;
 }
 .simple-icon {
-  min-width: 38px;
-  min-height: 38px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #e7e8ed;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid #dbe2d7;
   border-radius: 10px;
+  background: white;
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.simple-icon:hover {
+  background: var(--ui-soft);
+  border-color: #b8c7b8;
 }
 .simple-main {
   max-width: 1440px;
   margin: auto;
-  padding: 40px 24px 24px;
+  padding: 36px 32px 20px;
 }
 .simple-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 }
 .simple-heading h1 {
-  font-size: 27px;
-  letter-spacing: -1px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1.4px;
+  line-height: 1.35;
 }
 .simple-heading p {
-  color: #7a7e8b;
-  margin-top: 7px;
-  font-size: 13px;
+  color: var(--ui-muted);
+  margin-top: 8px;
+  font-size: 14px;
+}
+.simple-heading .simple-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #7b866e;
+  letter-spacing: 0.25px;
 }
 .simple-wedding-date {
+  display: grid;
+  gap: 5px;
+  min-width: 210px;
+  padding: 13px 17px;
+  border: 1px solid #e0e5da;
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 3px 12px #31463203;
+}
+.simple-wedding-date > span {
   display: flex;
   align-items: center;
-  gap: 10px;
-  white-space: nowrap;
+  gap: 7px;
+  color: #71806b;
   font-size: 12px;
-  color: #747985;
 }
 .simple-wedding-date input {
-  max-width: 165px;
+  max-width: 205px;
+  min-height: 34px;
+  padding: 3px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--ui-ink);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color-scheme: light;
+}
+.simple-wedding-date input:focus {
+  box-shadow: 0 0 0 3px #e7eee0;
+}
+.simple-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
 }
 .simple-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #e3e5ea;
+  gap: 4px;
+  width: fit-content;
+  padding: 5px;
+  border: 1px solid #e2e5dc;
+  background: #eaece4;
+  border-radius: 13px;
 }
 .simple-tabs button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
+  min-height: 43px;
+  padding: 9px 20px;
+  border-radius: 9px;
+  color: #697568;
   font-weight: 600;
-  padding: 14px 18px 17px;
-  border-bottom: 3px solid transparent;
-  color: #888b95;
-  margin-bottom: -1px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.simple-tabs button:hover {
+  color: var(--ui-accent);
+  background: #f2f4ee;
 }
 .simple-tabs button[aria-current='page'] {
-  color: #6e579f;
-  border-color: #7b65af;
+  background: #fffefa;
+  color: var(--ui-accent);
+  box-shadow: 0 1px 5px #31463212;
+}
+.simple-edit-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #7b8579;
+  font-size: 12px;
 }
 .simple-content {
   min-width: 0;
+  padding: 26px;
+  background: #fff;
+  border: 1px solid var(--ui-border);
+  border-radius: 18px;
+  box-shadow: 0 4px 20px #31463204;
 }
 .simple-footer {
-  color: #9497a1;
-  font-size: 11px;
+  color: #7d877b;
+  font-size: 12px;
   text-align: center;
-  padding: 24px 0 8px;
+  padding: 22px 0 6px;
 }
 .simple-connect {
-  background: white;
-  border: 1px solid #e2dbea;
-  border-radius: 12px;
+  background: #fffefa;
+  border: 1px solid #dce4d4;
+  border-radius: var(--ui-radius);
   padding: 20px;
   display: flex;
   flex-wrap: wrap;
@@ -127,8 +230,8 @@
   margin-bottom: 24px;
 }
 .simple-connect p {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: var(--ui-muted);
   margin-top: 4px;
 }
 .simple-connect form {
@@ -140,26 +243,42 @@
 .simple-connect form input {
   flex: 1;
   min-width: 0;
+  border-color: var(--ui-border);
 }
 .simple-error {
   padding: 12px 16px;
   border: 1px solid #edcfb3;
-  border-radius: 9px;
+  border-radius: 10px;
   color: #8d5027;
   background: #fffbf4;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 16px;
 }
 .simple-share {
   display: grid;
-  gap: 16px;
+  gap: 18px;
   line-height: 1.8;
 }
 .simple-share small {
-  color: #7a7e8b;
+  color: var(--ui-muted);
+  font-size: 12px;
 }
 .simple-share input {
-  font-size: 12px;
+  font-size: 13px;
+  border-color: var(--ui-border);
+}
+.simple-share input:focus,
+.simple-connect input:focus {
+  border-color: #93ad93;
+  box-shadow: 0 0 0 3px #edf2e9;
+}
+.simple-app .modal {
+  border-radius: 18px;
+  color: var(--ui-ink);
+}
+.simple-app .button {
+  border-radius: 10px;
+  min-height: 42px;
 }
 .simple-toast {
   position: fixed;
@@ -167,10 +286,10 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 120;
-  background: #33303e;
+  background: #283f36;
   color: white;
   border-radius: 12px;
-  box-shadow: 0 5px 30px #0002;
+  box-shadow: 0 5px 30px #213d2426;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -181,6 +300,7 @@
 .simple-toast button {
   color: white;
   flex-shrink: 0;
+  min-height: 32px;
 }
 .simple-app .spin {
   animation: simple-spin 1s linear infinite;
@@ -190,70 +310,128 @@
     transform: rotate(360deg);
   }
 }
+@media (max-width: 900px) {
+  .simple-main {
+    padding: 28px 22px 18px;
+  }
+  .simple-content {
+    padding: 21px;
+  }
+  .simple-edit-hint {
+    display: none;
+  }
+}
 @media (max-width: 640px) {
   .simple-topbar {
-    padding: 0 16px;
-    height: 60px;
+    padding: 10px 16px;
+    min-height: 64px;
+    gap: 10px;
   }
   .simple-brand {
-    font-size: 13px;
-    gap: 7px;
-  }
-  .simple-brand > span {
-    width: 30px;
-    height: 30px;
-  }
-  .simple-top-actions {
     gap: 8px;
   }
+  .simple-brand strong {
+    font-size: 13px;
+  }
+  .simple-brand > span {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .simple-top-actions {
+    gap: 9px;
+  }
   .simple-sync {
-    font-size: 10px;
-    gap: 3px;
+    font-size: 11px;
+    gap: 4px;
   }
   .simple-sync svg {
-    width: 12px;
+    width: 13px;
   }
   .simple-icon {
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 40px;
+    height: 40px;
+    padding: 8px;
+  }
+  .simple-icon > span {
+    display: none;
   }
   .simple-main {
-    padding: 24px 12px 16px;
+    padding: 24px 14px 16px;
   }
   .simple-heading {
-    flex-direction: column;
     align-items: flex-start;
-    gap: 15px;
-    margin-bottom: 18px;
+    gap: 20px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
   }
   .simple-heading h1 {
-    font-size: 23px;
+    font-size: 27px;
+    letter-spacing: -1px;
   }
   .simple-heading p {
-    font-size: 11px;
-    line-height: 1.7;
+    font-size: 13px;
+  }
+  .simple-wedding-date {
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 13px;
+    border-radius: 11px;
   }
   .simple-wedding-date input {
-    min-height: 36px;
-    padding: 6px 10px;
+    width: 160px;
+    font-size: 16px;
+  }
+  .simple-navigation {
+    margin-bottom: 14px;
   }
   .simple-tabs {
-    gap: 0;
-    margin-bottom: 16px;
+    width: 100%;
+    padding: 4px;
   }
   .simple-tabs button {
     flex: 1;
     font-size: 13px;
-    padding: 12px 8px;
-    gap: 6px;
+    padding: 9px 10px;
+    gap: 7px;
+    min-height: 44px;
+  }
+  .simple-content {
+    padding: 18px 13px;
+    border-radius: 14px;
   }
   .simple-connect {
-    padding: 14px;
+    padding: 16px;
   }
   .simple-connect form {
     min-width: 100%;
   }
   .simple-footer {
     line-height: 1.7;
+  }
+}
+@media (max-width: 359px) {
+  .simple-brand strong {
+    font-size: 12px;
+  }
+  .simple-sync {
+    font-size: 10px;
+  }
+  .simple-topbar {
+    padding-inline: 12px;
+  }
+  .simple-top-actions {
+    gap: 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .simple-app *,
+  .simple-app *::before,
+  .simple-app *::after {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
   }
 }
