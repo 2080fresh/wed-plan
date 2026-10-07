@@ -342,8 +342,8 @@
   resize: vertical;
   display: block;
   height: 44px;
-  padding-block: 11px;
-  line-height: 20px;
+  padding-block: 0;
+  line-height: 42px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -352,6 +352,8 @@
 }
 .simple-timeline .st-memo:focus {
   min-height: 84px;
+  padding-block: 11px;
+  line-height: 20px;
   overflow: auto;
   white-space: pre-wrap;
   color: var(--st-ink);
